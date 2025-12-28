@@ -1,0 +1,53 @@
+{
+  "common": {
+    "loading": "Nalaganje...",
+    "error": "Napaka",
+    "retry": "Poskusi znova",
+    "cancel": "Prekliči",
+    "save": "Shrani",
+    "delete": "Izbriši",
+    "copy": "Kopiraj",
+    "download": "Prenesi"
+  },
+  "landing": {
+    "title": "Smart Transcribe",
+    "subtitle": "Slovenska transkripcija z AI",
+    "cta": "Poskusi demo"
+  },
+  "demo": {
+    "title": "Demo",
+    "upload": {
+      "title": "Naloži zvočno datoteko",
+      "dragDrop": "Povleci in spusti ali klikni za izbiro",
+      "supported": "Podprto: MP3, WAV, M4A • Max 50MB • Max 5 minut"
+    },
+    "record": {
+      "start": "Začni snemanje",
+      "stop": "Ustavi snemanje",
+      "recording": "Snemanje..."
+    },
+    "speakers": {
+      "label": "Število govorcev",
+      "one": "1 govorec",
+      "two": "2 govorca",
+      "few": "{count} govorci",
+      "other": "{count} govorcev"
+    },
+    "processing": "Obdelava...",
+    "results": {
+      "raw": "Surova transkripcija",
+      "cleaned": "Očiščeno besedilo",
+      "analysis": "AI analiza"
+    }
+  },
+  "feedback": {
+    "title": "Oceni kakovost",
+    "placeholder": "Kaj bi lahko izboljšali?"
+  },
+  "waitlist": {
+    "title": "Pridruži se čakalni listi",
+    "email": "E-pošta",
+    "useCase": "Opišite vašo uporabo",
+    "submit": "Pridruži se"
+  }
+}

@@ -1,0 +1,25 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8001:8001"
+    environment:
+      BACKBONE_URL: http://host.docker.internal:8000
+      DEMO_USER_EMAIL: demo@smart-transcribe.local
+      DEMO_USER_PASSWORD: ${DEMO_PASSWORD}
+      # Rate limits (configurable)
+      RATE_LIMIT_HOUR: 5
+      RATE_LIMIT_DAY: 20
+      RATE_LIMIT_IP_DAY: 100
+      RATE_LIMIT_GLOBAL_DAY: 1000
+    volumes:
+      - ./data:/app/data  # SQLite persistence

@@ -1,0 +1,53 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "copy": "Copy",
+    "download": "Download"
+  },
+  "landing": {
+    "title": "Smart Transcribe",
+    "subtitle": "Slovenian transcription with AI",
+    "cta": "Try the Demo"
+  },
+  "demo": {
+    "title": "Demo",
+    "upload": {
+      "title": "Upload audio file",
+      "dragDrop": "Drag and drop or click to browse",
+      "supported": "Supported: MP3, WAV, M4A • Max 50MB • Max 5 minutes"
+    },
+    "record": {
+      "start": "Start recording",
+      "stop": "Stop recording",
+      "recording": "Recording..."
+    },
+    "speakers": {
+      "label": "Number of speakers",
+      "one": "1 speaker",
+      "two": "2 speakers",
+      "few": "{count} speakers",
+      "other": "{count} speakers"
+    },
+    "processing": "Processing...",
+    "results": {
+      "raw": "Raw transcription",
+      "cleaned": "Cleaned text",
+      "analysis": "AI analysis"
+    }
+  },
+  "feedback": {
+    "title": "Rate quality",
+    "placeholder": "What could be improved?"
+  },
+  "waitlist": {
+    "title": "Join the waitlist",
+    "email": "Email",
+    "useCase": "Describe your use case",
+    "submit": "Join"
+  }
+}
