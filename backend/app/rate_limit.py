@@ -6,10 +6,10 @@ Key Design Decisions (documented per user request):
    it's the cleanest way to add headers to ALL responses (both success and error).
    The alternative of adding headers in each endpoint would miss error responses.
 
-2. COUNT ATTEMPTS, NOT SUCCESSES: We commit the rate limit entry immediately
-   after the check passes, before the Core API call. This means we count
-   attempts, not just successful operations. This is intentional - otherwise
-   users could spam failed requests and bypass rate limiting.
+2. COUNT SUCCESSES, NOT ATTEMPTS: We only commit the rate limit entry after
+   the endpoint succeeds. The entry is added to the session but not committed
+   until the endpoint explicitly commits. This prevents locking users out due
+   to failed requests.
 
 3. LONGEST WAIT WINS: When multiple limits are exceeded (e.g., both hourly AND
    daily), we report the limit with the LONGEST retry_after time. This prevents
@@ -304,11 +304,10 @@ def require_rate_limit(action: str = "transcribe"):
         if not result.allowed:
             raise RateLimitExceeded(result)
 
-        # Commit the rate limit entry to the database.
-        # Note: We commit here rather than waiting for the endpoint to succeed
-        # because we want to count the attempt, not just successful operations.
-        # Otherwise users could spam failed requests and bypass rate limiting.
-        db.commit()
+        # Store db session in request state so endpoint can commit on success.
+        # Design: COUNT SUCCESSES, NOT ATTEMPTS - we don't commit here because
+        # if the Core API call fails, we don't want to "spend" a rate limit slot.
+        request.state.rate_limit_db = db
 
         # Store result in request state for middleware to add headers
         request.state.rate_limit_result = result

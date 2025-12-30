@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Form, Query, UploadFile
+from fastapi import APIRouter, Body, Depends, Form, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -38,6 +38,7 @@ class AnalyzeRequest(BaseModel):
 
 @router.post("/api/transcribe", status_code=202)
 async def transcribe(
+    request: Request,
     file: UploadFile,
     language: str = Form("sl"),
     enable_diarization: bool = Form(True),
@@ -79,6 +80,10 @@ async def transcribe(
             status_code=response.status_code,
             detail=response.text,
         )
+
+    # Commit rate limit entry only after successful Core API call.
+    # This ensures users aren't locked out due to failed requests.
+    request.state.rate_limit_db.commit()
 
     return response.json()
 
@@ -315,6 +320,7 @@ async def list_analysis_profiles(
 
 @router.post("/api/cleaned-entries/{cleanup_id}/analyze")
 async def trigger_analysis(
+    request: Request,
     cleanup_id: str,
     body: AnalyzeRequest = Body(default=AnalyzeRequest()),
     session: SessionModel = Depends(get_session),
@@ -334,6 +340,10 @@ async def trigger_analysis(
             status_code=response.status_code,
             detail=response.text,
         )
+
+    # Commit rate limit entry only after successful Core API call.
+    # This ensures users aren't locked out due to failed requests.
+    request.state.rate_limit_db.commit()
 
     return response.json()
 
