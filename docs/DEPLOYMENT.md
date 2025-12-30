@@ -75,10 +75,18 @@ pytest tests/test_endpoints.py -v  # Run specific test file
 - `CORE_API_URL` - Core API URL (default: `http://localhost:8000`)
 - `DATABASE_URL` - SQLite path (default: `sqlite:///./data/demo.db`)
 - `SESSION_DURATION_DAYS` - Session lifetime (default: 7)
-- `RATE_LIMIT_HOUR` - Uploads per hour per session (default: 5)
-- `RATE_LIMIT_DAY` - Uploads per day per session (default: 20)
-- `RATE_LIMIT_IP_DAY` - Uploads per IP per day (default: 100)
-- `RATE_LIMIT_GLOBAL_DAY` - Global daily limit (default: 1000)
+
+**Transcribe rate limits:**
+- `RATE_LIMIT_HOUR` - Transcriptions per hour per session (default: 5)
+- `RATE_LIMIT_DAY` - Transcriptions per day per session (default: 20)
+- `RATE_LIMIT_IP_DAY` - Transcriptions per IP per day (default: 20)
+- `RATE_LIMIT_GLOBAL_DAY` - Global daily transcription limit (default: 1000)
+
+**LLM/Analysis rate limits (10x transcribe - LLM calls are cheaper):**
+- `RATE_LIMIT_LLM_HOUR` - Analyses per hour per session (default: 50)
+- `RATE_LIMIT_LLM_DAY` - Analyses per day per session (default: 200)
+- `RATE_LIMIT_LLM_IP_DAY` - Analyses per IP per day (default: 200)
+- `RATE_LIMIT_LLM_GLOBAL_DAY` - Global daily analysis limit (default: 10000)
 
 ## CI/CD
 

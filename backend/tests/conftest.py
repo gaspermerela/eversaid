@@ -21,10 +21,16 @@ def test_settings() -> Settings:
     return Settings(
         CORE_API_URL="http://core-api:8000",
         SESSION_DURATION_DAYS=7,
+        # Transcribe rate limits
         RATE_LIMIT_HOUR=5,
         RATE_LIMIT_DAY=20,
-        RATE_LIMIT_IP_DAY=100,
+        RATE_LIMIT_IP_DAY=20,
         RATE_LIMIT_GLOBAL_DAY=1000,
+        # LLM rate limits (10x transcribe)
+        RATE_LIMIT_LLM_HOUR=50,
+        RATE_LIMIT_LLM_DAY=200,
+        RATE_LIMIT_LLM_IP_DAY=200,
+        RATE_LIMIT_LLM_GLOBAL_DAY=10000,
         DATABASE_URL="sqlite://",  # in-memory
     )
 

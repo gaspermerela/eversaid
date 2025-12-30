@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from app.core_client import CoreAPIClient, CoreAPIError, get_core_api
 from app.models import Session as SessionModel
+from app.rate_limit import RateLimitResult, require_rate_limit
 from app.session import get_session
 
 router = APIRouter(tags=["core"])
@@ -45,6 +46,7 @@ async def transcribe(
     analysis_profile: str = Form("generic-conversation-summary"),
     session: SessionModel = Depends(get_session),
     core_api: CoreAPIClient = Depends(get_core_api),
+    _rate_limit: RateLimitResult = Depends(require_rate_limit("transcribe")),
 ):
     """Upload audio and start transcription + cleanup + analysis.
 
@@ -317,6 +319,7 @@ async def trigger_analysis(
     body: AnalyzeRequest = Body(default=AnalyzeRequest()),
     session: SessionModel = Depends(get_session),
     core_api: CoreAPIClient = Depends(get_core_api),
+    _rate_limit: RateLimitResult = Depends(require_rate_limit("analyze")),
 ):
     """Trigger analysis on a cleaned entry."""
     response = await core_api.request(

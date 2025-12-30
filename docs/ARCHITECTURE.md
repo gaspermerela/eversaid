@@ -68,17 +68,19 @@ frontend/src/
 backend/
 ├── app/
 │   ├── main.py           # FastAPI app, lifespan, error handlers
-│   ├── config.py         # Pydantic Settings
+│   ├── config.py         # Pydantic Settings (rate limits, session duration)
 │   ├── database.py       # SQLAlchemy engine + session
-│   ├── models.py         # Session, Waitlist, Feedback, RateLimit
+│   ├── models.py         # Session, Waitlist, Feedback, RateLimitEntry
 │   ├── core_client.py    # CoreAPIClient for HTTP requests
 │   ├── session.py        # Anonymous session management
+│   ├── rate_limit.py     # Rate limiting (4-tier: session/hour, session/day, IP/day, global/day)
 │   └── routes/
 │       └── core.py       # Core API proxy endpoints
 ├── tests/
 │   ├── conftest.py       # Test fixtures (respx mocking)
 │   ├── test_session.py   # Session management tests
-│   └── test_endpoints.py # Endpoint tests
+│   ├── test_endpoints.py # Endpoint tests
+│   └── test_rate_limit.py # Rate limiting tests
 ├── requirements.txt      # Production dependencies
 └── requirements-dev.txt  # Test dependencies (pytest, respx)
 ```

@@ -3,12 +3,48 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_settings
 from app.core_client import CoreAPIClient, CoreAPIError
 from app.database import Base, engine
 from app import models  # noqa: F401 - Import models to register them with Base
+from app.rate_limit import RateLimitExceeded
 from app.routes.core import router as core_router
+
+
+# =============================================================================
+# Rate Limit Middleware
+# =============================================================================
+
+
+class RateLimitHeaderMiddleware(BaseHTTPMiddleware):
+    """Add rate limit headers to all responses from rate-limited endpoints.
+
+    Design Decision: Middleware for headers
+    -----------------------------------------
+    Using middleware is the cleanest way to add headers to ALL responses,
+    including both success (200) and error (4xx/5xx) responses. The alternative
+    of adding headers in each endpoint would miss error responses and create
+    duplication.
+
+    The rate_limit_result is stored in request.state by the require_rate_limit
+    dependency, making it available here.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+
+        # Add rate limit headers if result is available
+        if hasattr(request.state, "rate_limit_result"):
+            result = request.state.rate_limit_result
+            response.headers["X-RateLimit-Limit-Hour"] = str(result.hour.limit)
+            response.headers["X-RateLimit-Remaining-Hour"] = str(result.hour.remaining)
+            response.headers["X-RateLimit-Limit-Day"] = str(result.day.limit)
+            response.headers["X-RateLimit-Remaining-Day"] = str(result.day.remaining)
+            response.headers["X-RateLimit-Reset"] = str(result.hour.reset)
+
+        return response
 
 
 @asynccontextmanager
@@ -37,6 +73,9 @@ app = FastAPI(
 # Register routers
 app.include_router(core_router)
 
+# Register middleware
+app.add_middleware(RateLimitHeaderMiddleware)
+
 
 # Exception handlers
 @app.exception_handler(CoreAPIError)
@@ -45,6 +84,27 @@ async def core_api_error_handler(request: Request, exc: CoreAPIError) -> JSONRes
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
+    )
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded
+) -> JSONResponse:
+    """Convert RateLimitExceeded to HTTP 429 response with headers."""
+    result = exc.result
+    headers = {
+        "X-RateLimit-Limit-Hour": str(result.hour.limit),
+        "X-RateLimit-Remaining-Hour": str(result.hour.remaining),
+        "X-RateLimit-Limit-Day": str(result.day.limit),
+        "X-RateLimit-Remaining-Day": str(result.day.remaining),
+        "X-RateLimit-Reset": str(result.hour.reset),
+        "Retry-After": str(result.retry_after),
+    }
+    return JSONResponse(
+        status_code=429,
+        content=exc.detail,
+        headers=headers,
     )
 
 

@@ -517,11 +517,17 @@ async def get_or_create_session(request: Request, db: Session, settings: Setting
 **Session duration (easily changeable in config.py):**
 - `SESSION_DURATION_DAYS`: Default 7 days — how long session cookies and data persist
 
-**Rate limit defaults (easily changeable in config.py):**
-- 5 uploads per session per hour
-- 20 uploads per session per day
-- 20 uploads per IP per day
-- 1000 global uploads per day (cost control)
+**Transcribe rate limit defaults (easily changeable in config.py):**
+- 5 transcriptions per session per hour
+- 20 transcriptions per session per day
+- 20 transcriptions per IP per day
+- 1000 global transcriptions per day (cost control)
+
+**LLM/Analysis rate limits (10x transcribe - LLM calls are cheaper on Groq):**
+- 50 analyses per session per hour
+- 200 analyses per session per day
+- 200 analyses per IP per day
+- 10000 global analyses per day
 
 **Rate Limit API Response Headers:**
 
@@ -1389,11 +1395,16 @@ services:
       DEMO_USER_PASSWORD: ${DEMO_PASSWORD}
       # Session duration (configurable)
       SESSION_DURATION_DAYS: 7
-      # Rate limits (configurable)
+      # Transcribe rate limits (configurable)
       RATE_LIMIT_HOUR: 5
       RATE_LIMIT_DAY: 20
       RATE_LIMIT_IP_DAY: 20
       RATE_LIMIT_GLOBAL_DAY: 1000
+      # LLM/Analysis rate limits (10x transcribe)
+      RATE_LIMIT_LLM_HOUR: 50
+      RATE_LIMIT_LLM_DAY: 200
+      RATE_LIMIT_LLM_IP_DAY: 200
+      RATE_LIMIT_LLM_GLOBAL_DAY: 10000
     volumes:
       - ./data:/app/data  # SQLite
 
