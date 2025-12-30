@@ -5,7 +5,7 @@
 Eversaid is a monorepo containing:
 
 - **frontend/** - Next.js 15 with App Router
-- **backend/** - FastAPI wrapper backend (not yet implemented)
+- **backend/** - FastAPI wrapper backend
 - **docs/** - Documentation
 
 ## System Design
@@ -56,10 +56,26 @@ frontend/src/
 - **E2E tests:** Playwright (Chromium)
 - **CI:** GitHub Actions on PR
 
-### Wrapper Backend (Not Yet Implemented)
-- Session management with SQLite
-- Rate limiting (configurable)
+### Wrapper Backend
+- FastAPI with SQLite
+- Session management (anonymous users)
+- Rate limiting (configurable per-session, per-IP, global)
 - Proxies requests to Core API
+- Feedback and waitlist collection
+
+**Structure:**
+```
+backend/
+├── app/
+│   ├── main.py           # FastAPI app, health endpoint
+│   ├── config.py         # Pydantic Settings
+│   ├── database.py       # SQLAlchemy engine + session
+│   ├── models.py         # Session, Waitlist, Feedback, RateLimit
+│   └── routes/           # API endpoints
+├── tests/
+├── requirements.txt      # Production dependencies
+└── requirements-dev.txt  # Test dependencies (pytest, respx)
+```
 
 ### Core API (External)
 - Transcription (ElevenLabs Scribe v1)

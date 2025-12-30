@@ -9,10 +9,7 @@ services:
       - backend
 
   backend:
-    build:
-      context: ./backend
-      args:
-        INSTALL_DEV: "true"
+    build: ./backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
     ports:
       - "8001:8001"

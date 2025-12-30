@@ -9,15 +9,17 @@
 ## Local Development
 
 ```bash
-# Start with Docker Compose (when backend is ready)
+# Start with Docker Compose
 docker-compose up
 
 # Or run individually:
 # Frontend
 cd frontend && npm run dev
 
-# Backend (not yet implemented)
-cd backend && uvicorn app.main:app --reload --port 8001
+# Backend
+cd backend && python -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+uvicorn app.main:app --reload --port 8001
 ```
 
 ## Frontend Commands
@@ -46,12 +48,12 @@ npm run build-storybook  # Build static Storybook
 ### Frontend
 - `NEXT_PUBLIC_API_URL` - Wrapper backend URL
 
-### Backend (Not Yet Implemented)
-- `BACKBONE_URL` - Core API URL
-- `DEMO_USER_EMAIL` - Demo user email
-- `DEMO_USER_PASSWORD` - Demo user password
-- `RATE_LIMIT_HOUR` - Uploads per hour (default: 5)
-- `RATE_LIMIT_DAY` - Uploads per day (default: 20)
+### Backend
+- `CORE_API_URL` - Core API URL (default: `http://localhost:8000`)
+- `DATABASE_URL` - SQLite path (default: `sqlite:///./data/demo.db`)
+- `SESSION_DURATION_DAYS` - Session lifetime (default: 7)
+- `RATE_LIMIT_HOUR` - Uploads per hour per session (default: 5)
+- `RATE_LIMIT_DAY` - Uploads per day per session (default: 20)
 - `RATE_LIMIT_IP_DAY` - Uploads per IP per day (default: 100)
 - `RATE_LIMIT_GLOBAL_DAY` - Global daily limit (default: 1000)
 
