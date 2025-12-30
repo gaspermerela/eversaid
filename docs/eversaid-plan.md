@@ -520,7 +520,7 @@ async def get_or_create_session(request: Request, db: Session, settings: Setting
 **Rate limit defaults (easily changeable in config.py):**
 - 5 uploads per session per hour
 - 20 uploads per session per day
-- 100 uploads per IP per day
+- 20 uploads per IP per day
 - 1000 global uploads per day (cost control)
 
 **Rate Limit API Response Headers:**
@@ -1392,7 +1392,7 @@ services:
       # Rate limits (configurable)
       RATE_LIMIT_HOUR: 5
       RATE_LIMIT_DAY: 20
-      RATE_LIMIT_IP_DAY: 100
+      RATE_LIMIT_IP_DAY: 20
       RATE_LIMIT_GLOBAL_DAY: 1000
     volumes:
       - ./data:/app/data  # SQLite

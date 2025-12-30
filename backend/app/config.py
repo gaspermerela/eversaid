@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     SESSION_DURATION_DAYS: int = 7
     RATE_LIMIT_HOUR: int = 5
     RATE_LIMIT_DAY: int = 20
-    RATE_LIMIT_IP_DAY: int = 100
+    RATE_LIMIT_IP_DAY: int = 20
     RATE_LIMIT_GLOBAL_DAY: int = 1000
     DATABASE_URL: str = "sqlite:///./data/demo.db"
 
