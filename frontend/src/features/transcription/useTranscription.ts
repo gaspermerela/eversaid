@@ -1,2 +1,391 @@
-// Transcription hook with polling logic
-// TODO: Implement transcription state management and polling
+/**
+ * useTranscription - Transcription state management hook
+ *
+ * Manages segment data, provides mutation functions (edit/revert),
+ * and supports mock mode for development without a backend.
+ */
+
+import { useState, useCallback, useMemo } from "react"
+import type { Segment } from "@/components/demo/types"
+import type { SegmentWithTime, ProcessingStatus } from "./types"
+import { parseAllSegmentTimes, findSegmentAtTime } from "@/lib/time-utils"
+
+/**
+ * Mock segments data for development and testing
+ * Matches the segments from demo/page.tsx
+ */
+const MOCK_SEGMENTS: Segment[] = [
+  {
+    id: "seg-1",
+    speaker: 1,
+    time: "0:00 – 0:18",
+    rawText:
+      "Uh so basically what we're trying to do here is um figure out the best approach for the the project timeline and um you know make sure everyone's on the same page.",
+    cleanedText:
+      "So basically what we're trying to do here is figure out the best approach for the project timeline, ensuring everyone's on the same page.",
+  },
+  {
+    id: "seg-2",
+    speaker: 2,
+    time: "0:19 – 0:42",
+    rawText:
+      "Yeah I think we should we should probably start with the the research phase first you know and then move on to to the design work after we have all the the data we need.",
+    cleanedText:
+      "Yes, I think we should probably start with the research phase first and then move on to the design work after we have all the data we need.",
+  },
+  {
+    id: "seg-3",
+    speaker: 1,
+    time: "0:43 – 1:05",
+    rawText:
+      "That makes sense um and I was thinking maybe we could also like bring in some external consultants to help with the the technical aspects of the project.",
+    cleanedText:
+      "That makes sense, and I was thinking maybe we could bring in some external consultants to help with the technical aspects of the project.",
+  },
+  {
+    id: "seg-4",
+    speaker: 2,
+    time: "1:06 – 1:28",
+    rawText:
+      "Sure that's a good idea I mean we we definitely need some expertise in in the machine learning side of things especially for the the data processing pipeline.",
+    cleanedText:
+      "Sure, that's a good idea. We definitely need some expertise in the machine learning side of things, especially for the data processing pipeline.",
+  },
+  {
+    id: "seg-5",
+    speaker: 1,
+    time: "1:29 – 1:55",
+    rawText:
+      "Right right and um what about the the budget like do we have enough um resources allocated for for bringing in outside help or should we should we look at maybe reallocating from other areas?",
+    cleanedText:
+      "Right, and what about the budget? Do we have enough resources allocated for bringing in outside help, or should we look at reallocating from other areas?",
+  },
+  {
+    id: "seg-6",
+    speaker: 2,
+    time: "1:56 – 2:24",
+    rawText:
+      "Well I I think we have some some flexibility there um the Q3 budget had a a contingency fund set aside so so we could tap into that if if needed you know what I mean.",
+    cleanedText:
+      "Well, I think we have some flexibility there. The Q3 budget had a contingency fund set aside, so we could tap into that if needed.",
+  },
+  {
+    id: "seg-7",
+    speaker: 1,
+    time: "2:25 – 2:58",
+    rawText:
+      "Perfect that's that's great to hear um so let's let's plan to to have like a follow-up meeting next week to to finalize the the consultant requirements and um get the ball rolling on that.",
+    cleanedText:
+      "Perfect, that's great to hear. Let's plan to have a follow-up meeting next week to finalize the consultant requirements and get the ball rolling on that.",
+  },
+  {
+    id: "seg-8",
+    speaker: 2,
+    time: "2:59 – 3:28",
+    rawText:
+      "Sounds good I'll I'll send out a a calendar invite for for Thursday afternoon if if that works for everyone and uh we can we can also invite Sarah from from procurement to to help with the the vendor selection process.",
+    cleanedText:
+      "Sounds good. I'll send out a calendar invite for Thursday afternoon if that works for everyone. We can also invite Sarah from procurement to help with the vendor selection process.",
+  },
+]
+
+export interface UseTranscriptionOptions {
+  /** Use mock data instead of API (default: true for now) */
+  mockMode?: boolean
+  /** Initial segments (optional, overrides mock data) */
+  initialSegments?: Segment[]
+}
+
+export interface UseTranscriptionReturn {
+  // State
+  /** Array of segments with parsed start/end times */
+  segments: SegmentWithTime[]
+  /** Current processing status */
+  status: ProcessingStatus
+  /** Error message if status is 'error' */
+  error: string | null
+  /** Upload progress (0-100) */
+  uploadProgress: number
+  /** Current entry ID */
+  entryId: string | null
+
+  // Segment mutations
+  /**
+   * Update the cleaned text of a segment
+   * @param segmentId - ID of the segment to update
+   * @param text - New cleaned text
+   */
+  updateSegmentCleanedText: (segmentId: string, text: string) => void
+
+  /**
+   * Revert a segment's cleaned text back to raw text
+   * @param segmentId - ID of the segment to revert
+   * @returns The original cleaned text (for undo functionality)
+   */
+  revertSegmentToRaw: (segmentId: string) => string | undefined
+
+  /**
+   * Undo a revert by restoring the original cleaned text
+   * @param segmentId - ID of the segment
+   * @param originalCleanedText - The cleaned text to restore
+   */
+  undoRevert: (segmentId: string, originalCleanedText: string) => void
+
+  /**
+   * Check if a segment has been reverted
+   * @param segmentId - ID of the segment to check
+   */
+  isSegmentReverted: (segmentId: string) => boolean
+
+  // Upload (mock for now)
+  /**
+   * Upload audio and start transcription (mock implementation)
+   * @param file - Audio file to upload
+   * @param speakerCount - Number of speakers
+   */
+  uploadAudio: (file: File, speakerCount: number) => Promise<void>
+
+  // Utilities
+  /**
+   * Get a segment by ID
+   */
+  getSegmentById: (id: string) => SegmentWithTime | undefined
+
+  /**
+   * Get the segment at a specific time
+   */
+  getSegmentAtTime: (timeSeconds: number) => SegmentWithTime | undefined
+
+  /**
+   * Reset to initial state
+   */
+  reset: () => void
+}
+
+/**
+ * Hook for managing transcription state
+ *
+ * @param options - Configuration options
+ * @returns Object with state, mutations, and utilities
+ *
+ * @example
+ * ```tsx
+ * const {
+ *   segments,
+ *   status,
+ *   updateSegmentCleanedText,
+ *   revertSegmentToRaw
+ * } = useTranscription({ mockMode: true })
+ *
+ * // Update a segment
+ * updateSegmentCleanedText('seg-1', 'Updated text here')
+ *
+ * // Revert to raw
+ * const originalText = revertSegmentToRaw('seg-1')
+ * ```
+ */
+export function useTranscription(
+  options: UseTranscriptionOptions = {}
+): UseTranscriptionReturn {
+  const { mockMode = true, initialSegments } = options
+
+  // Base segments state
+  const [segments, setSegments] = useState<Segment[]>(
+    initialSegments || (mockMode ? MOCK_SEGMENTS : [])
+  )
+
+  // Processing state
+  const [status, setStatus] = useState<ProcessingStatus>(
+    segments.length > 0 ? "complete" : "idle"
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [entryId, setEntryId] = useState<string | null>(
+    segments.length > 0 ? "mock-entry-1" : null
+  )
+
+  // Track reverted segments for undo functionality
+  const [revertedSegments, setRevertedSegments] = useState<Map<string, string>>(
+    new Map()
+  )
+
+  // Parse time strings into start/end times
+  const segmentsWithTime = useMemo(
+    () => parseAllSegmentTimes(segments),
+    [segments]
+  )
+
+  /**
+   * Update the cleaned text of a segment
+   */
+  const updateSegmentCleanedText = useCallback(
+    (segmentId: string, text: string) => {
+      setSegments((prev) =>
+        prev.map((seg) =>
+          seg.id === segmentId ? { ...seg, cleanedText: text } : seg
+        )
+      )
+      // Clear reverted status if text is being edited
+      setRevertedSegments((prev) => {
+        const newMap = new Map(prev)
+        newMap.delete(segmentId)
+        return newMap
+      })
+    },
+    []
+  )
+
+  /**
+   * Revert a segment's cleaned text back to raw text
+   * Returns the original cleaned text for potential undo
+   */
+  const revertSegmentToRaw = useCallback(
+    (segmentId: string): string | undefined => {
+      const segment = segments.find((s) => s.id === segmentId)
+      if (!segment) return undefined
+
+      const originalCleanedText = segment.cleanedText
+
+      // Save original cleaned text for undo
+      setRevertedSegments((prev) =>
+        new Map(prev).set(segmentId, originalCleanedText)
+      )
+
+      // Set cleaned text to raw text
+      setSegments((prev) =>
+        prev.map((seg) =>
+          seg.id === segmentId ? { ...seg, cleanedText: seg.rawText } : seg
+        )
+      )
+
+      return originalCleanedText
+    },
+    [segments]
+  )
+
+  /**
+   * Undo a revert by restoring the original cleaned text
+   */
+  const undoRevert = useCallback(
+    (segmentId: string, originalCleanedText: string) => {
+      setSegments((prev) =>
+        prev.map((seg) =>
+          seg.id === segmentId
+            ? { ...seg, cleanedText: originalCleanedText }
+            : seg
+        )
+      )
+      setRevertedSegments((prev) => {
+        const newMap = new Map(prev)
+        newMap.delete(segmentId)
+        return newMap
+      })
+    },
+    []
+  )
+
+  /**
+   * Check if a segment has been reverted
+   */
+  const isSegmentReverted = useCallback(
+    (segmentId: string): boolean => {
+      return revertedSegments.has(segmentId)
+    },
+    [revertedSegments]
+  )
+
+  /**
+   * Mock upload function
+   * Simulates upload progress and transcription
+   */
+  const uploadAudio = useCallback(
+    async (file: File, speakerCount: number): Promise<void> => {
+      if (!mockMode) {
+        // TODO: Implement real API call
+        throw new Error("Real API mode not yet implemented")
+      }
+
+      setError(null)
+      setStatus("uploading")
+      setUploadProgress(0)
+
+      // Simulate upload progress
+      for (let i = 0; i <= 100; i += 10) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+        setUploadProgress(i)
+      }
+
+      setStatus("transcribing")
+
+      // Simulate transcription time
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      setStatus("cleaning")
+
+      // Simulate cleanup time
+      await new Promise((resolve) => setTimeout(resolve, 300))
+
+      // Set mock results
+      setSegments(MOCK_SEGMENTS)
+      setEntryId(`mock-entry-${Date.now()}`)
+      setStatus("complete")
+      setUploadProgress(0)
+
+      console.log(
+        `[Mock] Uploaded ${file.name} with ${speakerCount} speakers`
+      )
+    },
+    [mockMode]
+  )
+
+  /**
+   * Get a segment by ID
+   */
+  const getSegmentById = useCallback(
+    (id: string): SegmentWithTime | undefined => {
+      return segmentsWithTime.find((s) => s.id === id)
+    },
+    [segmentsWithTime]
+  )
+
+  /**
+   * Get the segment at a specific time
+   */
+  const getSegmentAtTime = useCallback(
+    (timeSeconds: number): SegmentWithTime | undefined => {
+      return findSegmentAtTime(segmentsWithTime, timeSeconds)
+    },
+    [segmentsWithTime]
+  )
+
+  /**
+   * Reset to initial state
+   */
+  const reset = useCallback(() => {
+    setSegments(initialSegments || (mockMode ? MOCK_SEGMENTS : []))
+    setStatus(segments.length > 0 ? "complete" : "idle")
+    setError(null)
+    setUploadProgress(0)
+    setEntryId(segments.length > 0 ? "mock-entry-1" : null)
+    setRevertedSegments(new Map())
+  }, [initialSegments, mockMode, segments.length])
+
+  return {
+    segments: segmentsWithTime,
+    status,
+    error,
+    uploadProgress,
+    entryId,
+    updateSegmentCleanedText,
+    revertSegmentToRaw,
+    undoRevert,
+    isSegmentReverted,
+    uploadAudio,
+    getSegmentById,
+    getSegmentAtTime,
+    reset,
+  }
+}
+
+// Re-export types
+export type { SegmentWithTime, ProcessingStatus } from "./types"
