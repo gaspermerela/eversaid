@@ -170,7 +170,7 @@ export interface LiveTranscriptPreviewProps {
 }
 
 export function LiveTranscriptPreview({
-  segments = landingPageSegments,
+  segments: segmentsProp = landingPageSegments,
   activeSegmentId,
   editingSegmentId,
   editedTexts,
@@ -202,6 +202,7 @@ export function LiveTranscriptPreview({
   const [hasAnimated, setHasAnimated] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  const [internalSegments, setInternalSegments] = useState<Segment[]>(segmentsProp)
   const [internalActiveSegmentId, setInternalActiveSegmentId] = useState<string | null>(null)
   const [internalEditingSegmentId, setInternalEditingSegmentId] = useState<string | null>(null)
   const [internalEditedTexts, setInternalEditedTexts] = useState<Map<string, string>>(new Map())
@@ -212,6 +213,7 @@ export function LiveTranscriptPreview({
   const [internalTextMoveSelection, setInternalTextMoveSelection] = useState<TextMoveSelection | null>(null)
   const [internalIsSelectingMoveTarget, setInternalIsSelectingMoveTarget] = useState(false)
 
+  const segments = internalSegments
   const activeSegmentIdState = activeSegmentId !== undefined ? activeSegmentId : internalActiveSegmentId
   const editingSegmentIdState = editingSegmentId !== undefined ? editingSegmentId : internalEditingSegmentId
   const editedTextsState = editedTexts ?? internalEditedTexts
@@ -242,11 +244,9 @@ export function LiveTranscriptPreview({
         const segment = segments.find((s) => s.id === segmentId)
         if (segment) {
           setInternalRevertedSegments((prev) => new Map(prev).set(segmentId, segment.cleanedText))
-          setInternalEditedTexts((prev) => {
-            const next = new Map(prev)
-            next.set(segmentId, segment.rawText)
-            return next
-          })
+          setInternalSegments((prev) =>
+            prev.map((seg) => (seg.id === segmentId ? { ...seg, cleanedText: seg.rawText } : seg)),
+          )
         }
       }
     },
@@ -258,22 +258,20 @@ export function LiveTranscriptPreview({
       if (onUndoRevert) {
         onUndoRevert(segmentId)
       } else {
-        const originalCleanedText = internalRevertedSegments.get(segmentId)
-        if (originalCleanedText) {
-          setInternalEditedTexts((prev) => {
-            const next = new Map(prev)
-            next.set(segmentId, originalCleanedText)
-            return next
-          })
-          setInternalRevertedSegments((prev) => {
-            const next = new Map(prev)
-            next.delete(segmentId)
-            return next
-          })
-        }
+        setInternalRevertedSegments((prev) => {
+          const originalCleanedText = prev.get(segmentId)
+          if (originalCleanedText) {
+            setInternalSegments((prevSegs) =>
+              prevSegs.map((seg) => (seg.id === segmentId ? { ...seg, cleanedText: originalCleanedText } : seg)),
+            )
+          }
+          const newMap = new Map(prev)
+          newMap.delete(segmentId)
+          return newMap
+        })
       }
     },
-    [onUndoRevert, internalRevertedSegments],
+    [onUndoRevert],
   )
 
   const handleSaveSegment = useCallback(
@@ -281,10 +279,26 @@ export function LiveTranscriptPreview({
       if (onSaveSegment) {
         onSaveSegment(segmentId)
       } else {
+        const newText = internalEditedTexts.get(segmentId)
+        if (newText !== undefined) {
+          setInternalSegments((prev) =>
+            prev.map((seg) => (seg.id === segmentId ? { ...seg, cleanedText: newText } : seg)),
+          )
+        }
         setInternalEditingSegmentId(null)
+        setInternalEditedTexts((prev) => {
+          const newMap = new Map(prev)
+          newMap.delete(segmentId)
+          return newMap
+        })
+        setInternalRevertedSegments((prev) => {
+          const newMap = new Map(prev)
+          newMap.delete(segmentId)
+          return newMap
+        })
       }
     },
-    [onSaveSegment],
+    [onSaveSegment, internalEditedTexts],
   )
 
   const handleSegmentEditStart = useCallback(
@@ -308,17 +322,14 @@ export function LiveTranscriptPreview({
         onSegmentEditCancel(segmentId)
       } else {
         setInternalEditingSegmentId(null)
-        const segment = segments.find((s) => s.id === segmentId)
-        if (segment) {
-          setInternalEditedTexts((prev) => {
-            const next = new Map(prev)
-            next.set(segmentId, segment.cleanedText)
-            return next
-          })
-        }
+        setInternalEditedTexts((prev) => {
+          const newMap = new Map(prev)
+          newMap.delete(segmentId)
+          return newMap
+        })
       }
     },
-    [onSegmentEditCancel, segments],
+    [onSegmentEditCancel],
   )
 
   const handleTextChange = useCallback(
@@ -364,7 +375,13 @@ export function LiveTranscriptPreview({
       if (onRawTextSelect) {
         onRawTextSelect(segmentId, text, startOffset, endOffset)
       } else {
-        setInternalTextMoveSelection({ segmentId, text, startOffset, endOffset, source: "raw" })
+        setInternalTextMoveSelection({
+          sourceSegmentId: segmentId,
+          text,
+          startOffset,
+          endOffset,
+          sourceColumn: "raw",
+        })
       }
     },
     [onRawTextSelect],
@@ -375,7 +392,13 @@ export function LiveTranscriptPreview({
       if (onCleanedTextSelect) {
         onCleanedTextSelect(segmentId, text, startOffset, endOffset)
       } else {
-        setInternalTextMoveSelection({ segmentId, text, startOffset, endOffset, source: "cleaned" })
+        setInternalTextMoveSelection({
+          sourceSegmentId: segmentId,
+          text,
+          startOffset,
+          endOffset,
+          sourceColumn: "cleaned",
+        })
       }
     },
     [onCleanedTextSelect],
@@ -383,16 +406,76 @@ export function LiveTranscriptPreview({
 
   const handleRawMoveTargetClick = useCallback(
     (targetSegmentId: string) => {
-      onRawMoveTargetClick?.(targetSegmentId)
+      if (onRawMoveTargetClick) {
+        onRawMoveTargetClick(targetSegmentId)
+      } else {
+        if (!internalTextMoveSelection || internalTextMoveSelection.sourceColumn !== "raw") return
+
+        const sourceId = internalTextMoveSelection.sourceSegmentId
+        const selectedText = internalTextMoveSelection.text
+
+        setInternalSegments((prev) => {
+          return prev.map((seg) => {
+            if (seg.id === sourceId) {
+              const currentText = seg.rawText
+              const newText = currentText.replace(selectedText, "").replace(/\s+/g, " ").trim()
+              return { ...seg, rawText: newText }
+            }
+            if (seg.id === targetSegmentId) {
+              const trimmedSelected = selectedText.trim()
+              const currentText = seg.rawText.trim()
+              const startsWithPunctuation = /^[,.!?;:]/.test(trimmedSelected)
+              const separator = startsWithPunctuation ? "" : " "
+              const newText = currentText ? `${currentText}${separator}${trimmedSelected}` : trimmedSelected
+              return { ...seg, rawText: newText }
+            }
+            return seg
+          })
+        })
+
+        setInternalTextMoveSelection(null)
+        setInternalIsSelectingMoveTarget(false)
+        window.getSelection()?.removeAllRanges()
+      }
     },
-    [onRawMoveTargetClick],
+    [onRawMoveTargetClick, internalTextMoveSelection],
   )
 
   const handleCleanedMoveTargetClick = useCallback(
     (targetSegmentId: string) => {
-      onCleanedMoveTargetClick?.(targetSegmentId)
+      if (onCleanedMoveTargetClick) {
+        onCleanedMoveTargetClick(targetSegmentId)
+      } else {
+        if (!internalTextMoveSelection || internalTextMoveSelection.sourceColumn !== "cleaned") return
+
+        const sourceId = internalTextMoveSelection.sourceSegmentId
+        const selectedText = internalTextMoveSelection.text
+
+        setInternalSegments((prev) => {
+          return prev.map((seg) => {
+            if (seg.id === sourceId) {
+              const currentText = seg.cleanedText
+              const newText = currentText.replace(selectedText, "").replace(/\s+/g, " ").trim()
+              return { ...seg, cleanedText: newText }
+            }
+            if (seg.id === targetSegmentId) {
+              const trimmedSelected = selectedText.trim()
+              const currentText = seg.cleanedText.trim()
+              const startsWithPunctuation = /^[,.!?;:]/.test(trimmedSelected)
+              const separator = startsWithPunctuation ? "" : " "
+              const newText = currentText ? `${currentText}${separator}${trimmedSelected}` : trimmedSelected
+              return { ...seg, cleanedText: newText }
+            }
+            return seg
+          })
+        })
+
+        setInternalTextMoveSelection(null)
+        setInternalIsSelectingMoveTarget(false)
+        window.getSelection()?.removeAllRanges()
+      }
     },
-    [onCleanedMoveTargetClick],
+    [onCleanedMoveTargetClick, internalTextMoveSelection],
   )
 
   const handleMoveClick = useCallback(() => {
@@ -434,13 +517,11 @@ export function LiveTranscriptPreview({
   useEffect(() => {
     if (!hasAnimated) return
 
-    // Add animation classes to raw segments
     const rawSegments = document.querySelectorAll('[data-column="raw"] [data-segment-id]')
     rawSegments.forEach((el, index) => {
       el.classList.add(`animate-raw-${index + 1}`)
     })
 
-    // Add animation classes to cleaned segments
     const cleanedSegments = document.querySelectorAll('[data-column="cleaned"] [data-segment-id]')
     cleanedSegments.forEach((el, index) => {
       el.classList.add(`animate-cleaned-${index + 1}`)
