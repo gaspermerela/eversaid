@@ -13,6 +13,7 @@ export interface EditableSegmentListProps {
     time: string
     rawText: string
     cleanedText: string
+    originalRawText: string
     paragraphs?: string[]
   }>
   activeSegmentId: string | null
@@ -121,6 +122,7 @@ export const EditableSegmentList = forwardRef<HTMLDivElement, EditableSegmentLis
                 time={seg.time}
                 text={seg.cleanedText}
                 rawText={seg.rawText}
+                originalRawText={seg.originalRawText}
                 paragraphs={seg.paragraphs}
                 isActive={seg.id === activeSegmentId}
                 isReverted={revertedSegments.has(seg.id)}

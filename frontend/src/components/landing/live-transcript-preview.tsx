@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import { useMemo, useEffect, useRef, useState, useCallback } from "react"
 import { TranscriptComparisonLayout } from "@/components/demo/transcript-comparison-layout"
 import { TextMoveToolbar } from "@/components/demo/text-move-toolbar"
@@ -13,6 +12,8 @@ export const landingPageSegments: Segment[] = [
     time: "0:00 – 0:11",
     rawText: "So basically I just wanted to to walk you through um what we're thinking for the the website redesign.",
     cleanedText: "I wanted to walk you through what we're thinking for the website redesign.",
+    originalRawText:
+      "So basically I just wanted to to walk you through um what we're thinking for the the website redesign.",
   },
   {
     id: "seg-2",
@@ -20,6 +21,7 @@ export const landingPageSegments: Segment[] = [
     time: "0:12 – 0:22",
     rawText: "Yeah that sounds good I'm I'm really excited to to see what you've come up with you know.",
     cleanedText: "That sounds good. I'm really excited to see what you've come up with.",
+    originalRawText: "Yeah that sounds good I'm I'm really excited to to see what you've come up with you know.",
   },
   {
     id: "seg-3",
@@ -28,6 +30,8 @@ export const landingPageSegments: Segment[] = [
     rawText:
       "Perfect so we're gonna we're gonna focus on three main areas I mean the homepage the the product pages and checkout.",
     cleanedText: "We're going to focus on three main areas: the homepage, the product pages, and checkout.",
+    originalRawText:
+      "Perfect so we're gonna we're gonna focus on three main areas I mean the homepage the the product pages and checkout.",
   },
 ]
 
@@ -157,7 +161,7 @@ export interface LiveTranscriptPreviewProps {
   onSegmentEditStart?: (segmentId: string) => void
   onSegmentEditCancel?: (segmentId: string) => void
   onTextChange?: (segmentId: string, text: string) => void
-  onWordClick?: (segmentId: string, e: React.MouseEvent, error: SpellcheckError) => void
+  onWordClick?: (segmentId: string, word: string, errors: string[]) => void
   onSuggestionSelect?: () => void
   onCloseSuggestions?: () => void
   onUpdateAllSegments?: () => void
@@ -345,8 +349,8 @@ export function LiveTranscriptPreview({
   )
 
   const handleWordClick = useCallback(
-    (segmentId: string, e: React.MouseEvent, error: SpellcheckError) => {
-      onWordClick?.(segmentId, e, error)
+    (segmentId: string, word: string, errors: string[]) => {
+      onWordClick?.(segmentId, word, errors)
     },
     [onWordClick],
   )
