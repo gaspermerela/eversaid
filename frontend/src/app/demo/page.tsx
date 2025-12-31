@@ -12,6 +12,7 @@ import { AudioPlayer } from "@/components/demo/audio-player"
 import type { Segment, HistoryEntry, SpellcheckError, TextMoveSelection } from "@/components/demo/types"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 import { useTranscription } from "@/features/transcription/useTranscription"
+import { useFeedback } from "@/features/transcription/useFeedback"
 
 // Mock spellcheck - in production, call a Slovenian spellcheck API
 const checkSpelling = (text: string): SpellcheckError[] => {
@@ -44,6 +45,12 @@ const checkSpelling = (text: string): SpellcheckError[] => {
 export default function DemoPage() {
   // Transcription hook
   const transcription = useTranscription({ mockMode: false })
+
+  // Feedback hook
+  const feedbackHook = useFeedback({
+    entryId: transcription.entryId ?? '',
+    feedbackType: 'transcription'
+  })
 
   // UI State
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null)
@@ -79,10 +86,6 @@ export default function DemoPage() {
 
   // Analysis State
   const [analysisType, setAnalysisType] = useState<"summary" | "action-items" | "sentiment">("summary")
-
-  // Feedback State
-  const [rating, setRating] = useState(0)
-  const [feedback, setFeedback] = useState("")
 
   // History entries
   const [historyEntries] = useState<HistoryEntry[]>([
@@ -396,20 +399,12 @@ export default function DemoPage() {
     }
   }, [selectedFile, selectedSpeakerCount, transcription])
 
-  // Feedback Handlers
-  const handleRatingChange = useCallback((newRating: number) => {
-    setRating(newRating)
-  }, [])
-
-  const handleFeedbackChange = useCallback((text: string) => {
-    setFeedback(text)
-  }, [])
-
-  const handleFeedbackSubmit = useCallback(() => {
-    console.log("Feedback submitted:", { rating, feedback })
-    setRating(0)
-    setFeedback("")
-  }, [rating, feedback])
+  // Auto-submit feedback for ratings >= 4
+  useEffect(() => {
+    if (feedbackHook.rating >= 4 && !feedbackHook.isSubmitted && !feedbackHook.isSubmitting) {
+      feedbackHook.submit()
+    }
+  }, [feedbackHook.rating, feedbackHook.isSubmitted, feedbackHook.isSubmitting, feedbackHook])
 
   // Waitlist Handlers
   const handleOpenWaitlist = useCallback((type: "extended_usage" | "api_access" = "extended_usage") => {
@@ -474,7 +469,11 @@ export default function DemoPage() {
           </div>
           <div className="flex gap-4">
             <div className="px-4 py-2 bg-white rounded-lg border border-[#E2E8F0] shadow-sm">
-              <span className="text-sm font-semibold text-[#64748B]">15/20</span>
+              <span className="text-sm font-semibold text-[#64748B]">
+                {transcription.rateLimits?.day
+                  ? `${transcription.rateLimits.day.remaining}/${transcription.rateLimits.day.limit}`
+                  : '--/--'}
+              </span>
               <span className="text-xs text-[#94A3B8] ml-1">daily</span>
             </div>
           </div>
@@ -543,11 +542,14 @@ export default function DemoPage() {
           <div className="space-y-6">
             <EntryHistoryCard entries={historyEntries} />
             <FeedbackCard
-              rating={rating}
-              feedback={feedback}
-              onRatingChange={handleRatingChange}
-              onFeedbackChange={handleFeedbackChange}
-              onSubmit={handleFeedbackSubmit}
+              rating={feedbackHook.rating}
+              feedback={feedbackHook.feedbackText}
+              onRatingChange={feedbackHook.setRating}
+              onFeedbackChange={feedbackHook.setFeedbackText}
+              onSubmit={feedbackHook.submit}
+              isSubmitting={feedbackHook.isSubmitting}
+              isSubmitted={feedbackHook.isSubmitted}
+              disabled={!transcription.entryId}
             />
           </div>
         </div>
