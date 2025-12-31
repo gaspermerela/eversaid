@@ -2,17 +2,32 @@
  * useTranscription - Transcription state management hook
  *
  * Manages segment data, provides mutation functions (edit/revert),
- * and supports mock mode for development without a backend.
+ * and integrates with the backend API for real transcription.
  */
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useRef } from "react"
 import type { Segment } from "@/components/demo/types"
-import type { SegmentWithTime, ProcessingStatus } from "./types"
+import type {
+  SegmentWithTime,
+  ProcessingStatus,
+  ApiSegment,
+  CleanedSegment,
+  RateLimitInfo,
+} from "./types"
+import { ApiError } from "./types"
 import { parseAllSegmentTimes, findSegmentAtTime } from "@/lib/time-utils"
+import {
+  uploadAndTranscribe,
+  getTranscriptionStatus,
+  getCleanedEntry,
+  saveUserEdit,
+  revertUserEdit,
+  parseRateLimitHeaders,
+} from "./api"
+import { addEntryId, cacheEntry } from "@/lib/storage"
 
 /**
  * Mock segments data for development and testing
- * Matches the segments from demo/page.tsx
  */
 const MOCK_SEGMENTS: Segment[] = [
   {
@@ -89,8 +104,11 @@ const MOCK_SEGMENTS: Segment[] = [
   },
 ]
 
+// Polling interval for transcription status (2 seconds)
+const POLL_INTERVAL_MS = 2000
+
 export interface UseTranscriptionOptions {
-  /** Use mock data instead of API (default: true for now) */
+  /** Use mock data instead of API (default: false) */
   mockMode?: boolean
   /** Initial segments (optional, overrides mock data) */
   initialSegments?: Segment[]
@@ -108,6 +126,10 @@ export interface UseTranscriptionReturn {
   uploadProgress: number
   /** Current entry ID */
   entryId: string | null
+  /** Current cleanup ID (needed for editing) */
+  cleanupId: string | null
+  /** Current rate limit info */
+  rateLimits: RateLimitInfo | null
 
   // Segment mutations
   /**
@@ -115,14 +137,14 @@ export interface UseTranscriptionReturn {
    * @param segmentId - ID of the segment to update
    * @param text - New cleaned text
    */
-  updateSegmentCleanedText: (segmentId: string, text: string) => void
+  updateSegmentCleanedText: (segmentId: string, text: string) => Promise<void>
 
   /**
    * Revert a segment's cleaned text back to raw text
    * @param segmentId - ID of the segment to revert
    * @returns The original cleaned text (for undo functionality)
    */
-  revertSegmentToRaw: (segmentId: string) => string | undefined
+  revertSegmentToRaw: (segmentId: string) => Promise<string | undefined>
 
   /**
    * Undo a revert by restoring the original cleaned text
@@ -137,9 +159,9 @@ export interface UseTranscriptionReturn {
    */
   isSegmentReverted: (segmentId: string) => boolean
 
-  // Upload (mock for now)
+  // Upload
   /**
-   * Upload audio and start transcription (mock implementation)
+   * Upload audio and start transcription
    * @param file - Audio file to upload
    * @param speakerCount - Number of speakers
    */
@@ -163,6 +185,54 @@ export interface UseTranscriptionReturn {
 }
 
 /**
+ * Format seconds to "M:SS" or "H:MM:SS" format
+ */
+function formatTime(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+
+  if (hours > 0) {
+    return `${hours}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  }
+  return `${mins}:${secs.toString().padStart(2, "0")}`
+}
+
+/**
+ * Transform API segments to frontend Segment format
+ */
+function transformApiSegments(
+  rawSegments: ApiSegment[],
+  cleanedSegments: CleanedSegment[]
+): Segment[] {
+  // Create a map of cleaned segments by their raw_segment_id or index
+  const cleanedMap = new Map<string, CleanedSegment>()
+  cleanedSegments.forEach((seg, index) => {
+    // Use raw_segment_id if available, otherwise use the segment's own id
+    const key = seg.raw_segment_id || seg.id || `idx-${index}`
+    cleanedMap.set(key, seg)
+  })
+
+  return rawSegments.map((rawSeg, index) => {
+    // Find matching cleaned segment
+    const cleanedSeg =
+      cleanedMap.get(rawSeg.id) ||
+      cleanedMap.get(`idx-${index}`) ||
+      cleanedSegments[index]
+
+    const timeStr = `${formatTime(rawSeg.start)} – ${formatTime(rawSeg.end)}`
+
+    return {
+      id: rawSeg.id || `seg-${index}`,
+      speaker: rawSeg.speaker_id ?? 0,
+      time: timeStr,
+      rawText: rawSeg.text,
+      cleanedText: cleanedSeg?.text || rawSeg.text,
+    }
+  })
+}
+
+/**
  * Hook for managing transcription state
  *
  * @param options - Configuration options
@@ -175,19 +245,19 @@ export interface UseTranscriptionReturn {
  *   status,
  *   updateSegmentCleanedText,
  *   revertSegmentToRaw
- * } = useTranscription({ mockMode: true })
+ * } = useTranscription({ mockMode: false })
+ *
+ * // Upload audio
+ * await uploadAudio(file, 2)
  *
  * // Update a segment
- * updateSegmentCleanedText('seg-1', 'Updated text here')
- *
- * // Revert to raw
- * const originalText = revertSegmentToRaw('seg-1')
+ * await updateSegmentCleanedText('seg-1', 'Updated text here')
  * ```
  */
 export function useTranscription(
   options: UseTranscriptionOptions = {}
 ): UseTranscriptionReturn {
-  const { mockMode = true, initialSegments } = options
+  const { mockMode = false, initialSegments } = options
 
   // Base segments state
   const [segments, setSegments] = useState<Segment[]>(
@@ -203,11 +273,16 @@ export function useTranscription(
   const [entryId, setEntryId] = useState<string | null>(
     segments.length > 0 ? "mock-entry-1" : null
   )
+  const [cleanupId, setCleanupId] = useState<string | null>(null)
+  const [rateLimits, setRateLimits] = useState<RateLimitInfo | null>(null)
 
   // Track reverted segments for undo functionality
   const [revertedSegments, setRevertedSegments] = useState<Map<string, string>>(
     new Map()
   )
+
+  // Ref for cleanup on unmount
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   // Parse time strings into start/end times
   const segmentsWithTime = useMemo(
@@ -216,23 +291,35 @@ export function useTranscription(
   )
 
   /**
-   * Update the cleaned text of a segment
+   * Update the cleaned text of a segment (calls API in non-mock mode)
    */
   const updateSegmentCleanedText = useCallback(
-    (segmentId: string, text: string) => {
+    async (segmentId: string, text: string) => {
+      // Update local state immediately for responsiveness
       setSegments((prev) =>
         prev.map((seg) =>
           seg.id === segmentId ? { ...seg, cleanedText: text } : seg
         )
       )
+
       // Clear reverted status if text is being edited
       setRevertedSegments((prev) => {
         const newMap = new Map(prev)
         newMap.delete(segmentId)
         return newMap
       })
+
+      // Call API in non-mock mode
+      if (!mockMode && cleanupId) {
+        try {
+          await saveUserEdit(cleanupId, text)
+        } catch (err) {
+          // Log error but don't revert - local state is source of truth for edits
+          console.error("Failed to save edit to server:", err)
+        }
+      }
     },
-    []
+    [mockMode, cleanupId]
   )
 
   /**
@@ -240,7 +327,7 @@ export function useTranscription(
    * Returns the original cleaned text for potential undo
    */
   const revertSegmentToRaw = useCallback(
-    (segmentId: string): string | undefined => {
+    async (segmentId: string): Promise<string | undefined> => {
       const segment = segments.find((s) => s.id === segmentId)
       if (!segment) return undefined
 
@@ -258,9 +345,18 @@ export function useTranscription(
         )
       )
 
+      // Call API in non-mock mode
+      if (!mockMode && cleanupId) {
+        try {
+          await revertUserEdit(cleanupId)
+        } catch (err) {
+          console.error("Failed to revert on server:", err)
+        }
+      }
+
       return originalCleanedText
     },
-    [segments]
+    [segments, mockMode, cleanupId]
   )
 
   /**
@@ -295,47 +391,190 @@ export function useTranscription(
   )
 
   /**
-   * Mock upload function
-   * Simulates upload progress and transcription
+   * Poll for transcription status until complete or failed
+   */
+  const pollTranscriptionStatus = useCallback(
+    async (transcriptionId: string, cleanupIdVal: string): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const poll = async () => {
+          try {
+            const transcriptionStatus =
+              await getTranscriptionStatus(transcriptionId)
+
+            if (transcriptionStatus.status === "completed") {
+              // Clear polling
+              if (pollingRef.current) {
+                clearTimeout(pollingRef.current)
+                pollingRef.current = null
+              }
+
+              setStatus("cleaning")
+
+              // Fetch cleaned entry
+              const cleanedEntry = await getCleanedEntry(cleanupIdVal)
+
+              if (
+                cleanedEntry.status === "completed" &&
+                transcriptionStatus.segments
+              ) {
+                // Transform and set segments
+                const transformedSegments = transformApiSegments(
+                  transcriptionStatus.segments,
+                  cleanedEntry.segments
+                )
+                setSegments(transformedSegments)
+                setStatus("complete")
+                resolve()
+              } else if (cleanedEntry.status === "failed") {
+                setError("Cleanup failed")
+                setStatus("error")
+                reject(new Error("Cleanup failed"))
+              } else {
+                // Cleanup still processing, continue polling
+                pollingRef.current = setTimeout(poll, POLL_INTERVAL_MS)
+              }
+            } else if (transcriptionStatus.status === "failed") {
+              if (pollingRef.current) {
+                clearTimeout(pollingRef.current)
+                pollingRef.current = null
+              }
+              setError(transcriptionStatus.error || "Transcription failed")
+              setStatus("error")
+              reject(new Error(transcriptionStatus.error || "Transcription failed"))
+            } else {
+              // Still processing, continue polling
+              pollingRef.current = setTimeout(poll, POLL_INTERVAL_MS)
+            }
+          } catch (err) {
+            if (pollingRef.current) {
+              clearTimeout(pollingRef.current)
+              pollingRef.current = null
+            }
+            const errorMessage =
+              err instanceof Error ? err.message : "Unknown error"
+            setError(errorMessage)
+            setStatus("error")
+            reject(err)
+          }
+        }
+
+        poll()
+      })
+    },
+    []
+  )
+
+  /**
+   * Upload audio and start transcription
    */
   const uploadAudio = useCallback(
     async (file: File, speakerCount: number): Promise<void> => {
-      if (!mockMode) {
-        // TODO: Implement real API call
-        throw new Error("Real API mode not yet implemented")
+      // Clean up any existing polling
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current)
+        pollingRef.current = null
       }
 
+      if (mockMode) {
+        // Mock mode implementation
+        setError(null)
+        setStatus("uploading")
+        setUploadProgress(0)
+
+        // Simulate upload progress
+        for (let i = 0; i <= 100; i += 10) {
+          await new Promise((resolve) => setTimeout(resolve, 100))
+          setUploadProgress(i)
+        }
+
+        setStatus("transcribing")
+        await new Promise((resolve) => setTimeout(resolve, 500))
+
+        setStatus("cleaning")
+        await new Promise((resolve) => setTimeout(resolve, 300))
+
+        setSegments(MOCK_SEGMENTS)
+        setEntryId(`mock-entry-${Date.now()}`)
+        setCleanupId(`mock-cleanup-${Date.now()}`)
+        setStatus("complete")
+        setUploadProgress(0)
+
+        console.log(
+          `[Mock] Uploaded ${file.name} with ${speakerCount} speakers`
+        )
+        return
+      }
+
+      // Real API implementation
       setError(null)
       setStatus("uploading")
       setUploadProgress(0)
 
-      // Simulate upload progress
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        setUploadProgress(i)
+      try {
+        // Start upload (progress is simulated for now since fetch doesn't support progress)
+        setUploadProgress(50)
+
+        const response = await uploadAndTranscribe(file, {
+          speakerCount,
+          enableDiarization: speakerCount > 1,
+          enableAnalysis: true,
+        })
+
+        setUploadProgress(100)
+        setEntryId(response.entry_id)
+        setCleanupId(response.cleanup_id)
+
+        // Cache entry in localStorage
+        addEntryId(response.entry_id)
+        cacheEntry({
+          id: response.entry_id,
+          filename: file.name,
+          duration: 0, // Will be updated when transcription completes
+          createdAt: new Date().toISOString(),
+          transcriptionStatus: "processing",
+          cleanupStatus: "pending",
+        })
+
+        setStatus("transcribing")
+        setUploadProgress(0)
+
+        // Poll for completion
+        await pollTranscriptionStatus(
+          response.transcription_id,
+          response.cleanup_id
+        )
+      } catch (err) {
+        if (pollingRef.current) {
+          clearTimeout(pollingRef.current)
+          pollingRef.current = null
+        }
+
+        let errorMessage = "Upload failed. Please try again."
+
+        if (err instanceof ApiError) {
+          // Update rate limits if available
+          if (err.rateLimitInfo) {
+            setRateLimits(err.rateLimitInfo)
+          }
+
+          if (err.isRateLimited) {
+            errorMessage =
+              err.rateLimitError?.message || "Rate limit exceeded. Please try again later."
+          } else if (err.isNotFound) {
+            errorMessage = "Resource not found."
+          } else {
+            errorMessage = err.message
+          }
+        } else if (err instanceof Error) {
+          errorMessage = err.message
+        }
+
+        setError(errorMessage)
+        setStatus("error")
+        setUploadProgress(0)
       }
-
-      setStatus("transcribing")
-
-      // Simulate transcription time
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      setStatus("cleaning")
-
-      // Simulate cleanup time
-      await new Promise((resolve) => setTimeout(resolve, 300))
-
-      // Set mock results
-      setSegments(MOCK_SEGMENTS)
-      setEntryId(`mock-entry-${Date.now()}`)
-      setStatus("complete")
-      setUploadProgress(0)
-
-      console.log(
-        `[Mock] Uploaded ${file.name} with ${speakerCount} speakers`
-      )
     },
-    [mockMode]
+    [mockMode, pollTranscriptionStatus]
   )
 
   /**
@@ -362,13 +601,21 @@ export function useTranscription(
    * Reset to initial state
    */
   const reset = useCallback(() => {
+    // Clean up polling
+    if (pollingRef.current) {
+      clearTimeout(pollingRef.current)
+      pollingRef.current = null
+    }
+
     setSegments(initialSegments || (mockMode ? MOCK_SEGMENTS : []))
-    setStatus(segments.length > 0 ? "complete" : "idle")
+    setStatus(initialSegments?.length || mockMode ? "complete" : "idle")
     setError(null)
     setUploadProgress(0)
-    setEntryId(segments.length > 0 ? "mock-entry-1" : null)
+    setEntryId(initialSegments?.length || mockMode ? "mock-entry-1" : null)
+    setCleanupId(null)
+    setRateLimits(null)
     setRevertedSegments(new Map())
-  }, [initialSegments, mockMode, segments.length])
+  }, [initialSegments, mockMode])
 
   return {
     segments: segmentsWithTime,
@@ -376,6 +623,8 @@ export function useTranscription(
     error,
     uploadProgress,
     entryId,
+    cleanupId,
+    rateLimits,
     updateSegmentCleanedText,
     revertSegmentToRaw,
     undoRevert,
