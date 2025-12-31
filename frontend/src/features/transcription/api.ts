@@ -29,42 +29,33 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost
  * Parse rate limit headers from a Response object
  */
 export function parseRateLimitHeaders(response: Response): RateLimitInfo | null {
-  const hourLimit = response.headers.get('X-RateLimit-Limit-Hour')
-  const hourRemaining = response.headers.get('X-RateLimit-Remaining-Hour')
   const dayLimit = response.headers.get('X-RateLimit-Limit-Day')
   const dayRemaining = response.headers.get('X-RateLimit-Remaining-Day')
   const reset = response.headers.get('X-RateLimit-Reset')
 
   // If no rate limit headers present, return null
-  if (!hourLimit || !hourRemaining || !dayLimit || !dayRemaining || !reset) {
+  if (!dayLimit || !dayRemaining || !reset) {
     return null
   }
 
   const resetTimestamp = parseInt(reset, 10)
-  // Day reset is approximately 24 hours from hour reset
-  const dayReset = resetTimestamp + 23 * 3600
 
   return {
-    hour: {
-      limit: parseInt(hourLimit, 10),
-      remaining: parseInt(hourRemaining, 10),
-      reset: resetTimestamp,
-    },
     day: {
       limit: parseInt(dayLimit, 10),
       remaining: parseInt(dayRemaining, 10),
-      reset: dayReset,
+      reset: resetTimestamp,
     },
-    // IP and global limits use same day reset
+    // IP and global limits use same day reset (not exposed via headers)
     ip_day: {
       limit: parseInt(dayLimit, 10),
       remaining: parseInt(dayRemaining, 10),
-      reset: dayReset,
+      reset: resetTimestamp,
     },
     global_day: {
       limit: parseInt(dayLimit, 10),
       remaining: parseInt(dayRemaining, 10),
-      reset: dayReset,
+      reset: resetTimestamp,
     },
   }
 }

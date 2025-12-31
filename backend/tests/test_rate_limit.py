@@ -1,7 +1,6 @@
 """Tests for rate limiting functionality.
 
-Tests cover all four rate limit tiers:
-- Session per hour
+Tests cover all three rate limit tiers:
 - Session per day
 - IP per day
 - Global per day
@@ -35,12 +34,10 @@ def rate_limit_settings():
         CORE_API_URL="http://core-api:8000",
         SESSION_DURATION_DAYS=7,
         # Very low limits for testing
-        RATE_LIMIT_HOUR=2,
         RATE_LIMIT_DAY=3,
         RATE_LIMIT_IP_DAY=4,
         RATE_LIMIT_GLOBAL_DAY=5,
         # LLM limits (10x for testing)
-        RATE_LIMIT_LLM_HOUR=20,
         RATE_LIMIT_LLM_DAY=30,
         RATE_LIMIT_LLM_IP_DAY=40,
         RATE_LIMIT_LLM_GLOBAL_DAY=50,
@@ -196,60 +193,24 @@ def do_analyze(client):
 
 
 # =============================================================================
-# Session Hourly Limit Tests
-# =============================================================================
-
-
-class TestRateLimitTranscribeSessionHour:
-    """Tests for transcribe session hourly rate limit."""
-
-    def test_allows_requests_under_limit(self, rate_limited_client, rate_limit_settings):
-        """Requests under hourly limit should succeed."""
-        mock_transcribe_success(rate_limit_settings)
-
-        # First request should succeed
-        response = do_transcribe(rate_limited_client)
-        assert response.status_code == 202
-
-        # Second request (at limit - 1) should succeed
-        response = do_transcribe(rate_limited_client)
-        assert response.status_code == 202
-
-    def test_blocks_at_hourly_limit(self, rate_limited_client, rate_limit_settings):
-        """Request at hourly limit should be blocked with 429."""
-        mock_transcribe_success(rate_limit_settings)
-
-        # Make requests up to limit (limit is 2)
-        do_transcribe(rate_limited_client)
-        do_transcribe(rate_limited_client)
-
-        # This request should be blocked
-        response = do_transcribe(rate_limited_client)
-        assert response.status_code == 429
-
-    def test_429_includes_limit_type(self, rate_limited_client, rate_limit_settings):
-        """429 response should indicate which limit was exceeded."""
-        mock_transcribe_success(rate_limit_settings)
-
-        # Exhaust hourly limit
-        do_transcribe(rate_limited_client)
-        do_transcribe(rate_limited_client)
-
-        response = do_transcribe(rate_limited_client)
-        data = response.json()
-
-        assert data["error"] == "rate_limit_exceeded"
-        assert data["limit_type"] == "hour"
-        assert "Hourly limit" in data["message"]
-
-
-# =============================================================================
 # Session Daily Limit Tests
 # =============================================================================
 
 
 class TestRateLimitTranscribeSessionDay:
     """Tests for transcribe session daily rate limit."""
+
+    def test_allows_requests_under_limit(self, rate_limited_client, rate_limit_settings):
+        """Requests under daily limit should succeed."""
+        mock_transcribe_success(rate_limit_settings)
+
+        # First request should succeed
+        response = do_transcribe(rate_limited_client)
+        assert response.status_code == 202
+
+        # Second request (under limit of 3) should succeed
+        response = do_transcribe(rate_limited_client)
+        assert response.status_code == 202
 
     def test_blocks_at_daily_limit(self, rate_limited_client, rate_limit_settings, test_engine):
         """Request at daily limit should be blocked."""
@@ -267,25 +228,41 @@ class TestRateLimitTranscribeSessionDay:
         session_id = entries[0].session_id
         ip_address = entries[0].ip_address
 
-        # Add entries from "earlier today" (still within day, outside hour)
+        # Add entries from "earlier today" (still within day)
         for _ in range(2):  # day limit is 3, we already have 1
             entry = RateLimitEntry(
                 session_id=session_id,
                 ip_address=ip_address,
                 action="transcribe",
-                created_at=datetime.utcnow() - timedelta(hours=2),  # Outside hourly window
+                created_at=datetime.utcnow() - timedelta(hours=2),
             )
             db.add(entry)
         db.commit()
         db.close()
 
-        # Now hourly count is 1, daily count is 3 (at limit)
+        # Now daily count is 3 (at limit)
         # Next request should hit daily limit
         response = do_transcribe(rate_limited_client)
         assert response.status_code == 429
 
         data = response.json()
         assert data["limit_type"] == "day"
+
+    def test_429_includes_limit_type(self, rate_limited_client, rate_limit_settings):
+        """429 response should indicate which limit was exceeded."""
+        mock_transcribe_success(rate_limit_settings)
+
+        # Exhaust daily limit (limit is 3)
+        do_transcribe(rate_limited_client)
+        do_transcribe(rate_limited_client)
+        do_transcribe(rate_limited_client)
+
+        response = do_transcribe(rate_limited_client)
+        data = response.json()
+
+        assert data["error"] == "rate_limit_exceeded"
+        assert data["limit_type"] == "day"
+        assert "Daily limit" in data["message"]
 
 
 # =============================================================================
@@ -311,7 +288,7 @@ class TestRateLimitTranscribeIPDay:
         entries = db.query(RateLimitEntry).all()
         ip_address = entries[0].ip_address
 
-        # Add entries from "other sessions" with same IP (outside hourly window)
+        # Add entries from "other sessions" with same IP
         for i in range(3):  # IP day limit is 4, we have 1
             entry = RateLimitEntry(
                 session_id=f"other-session-{i}",
@@ -323,7 +300,7 @@ class TestRateLimitTranscribeIPDay:
         db.commit()
         db.close()
 
-        # Now IP day count is 4 (at limit), session hourly/daily still low
+        # Now IP day count is 4 (at limit), session daily still low
         response = do_transcribe(rate_limited_client)
         assert response.status_code == 429
 
@@ -345,7 +322,7 @@ class TestRateLimitTranscribeGlobalDay:
 
         mock_transcribe_success(rate_limit_settings)
 
-        # Add entries from various sessions/IPs (outside hourly window)
+        # Add entries from various sessions/IPs
         TestingSessionLocal = sessionmaker(bind=test_engine)
         db = TestingSessionLocal()
 
@@ -384,7 +361,8 @@ class TestRateLimitAnalyze:
         mock_analyze_success(rate_limit_settings)
         mock_transcribe_success(rate_limit_settings)
 
-        # Make requests up to transcribe hourly limit
+        # Make requests up to transcribe daily limit (3)
+        do_transcribe(rate_limited_client)
         do_transcribe(rate_limited_client)
         do_transcribe(rate_limited_client)
 
@@ -412,8 +390,8 @@ class TestRateLimitAnalyze:
         session_id = entries[0].session_id
         ip_address = entries[0].ip_address
 
-        # Add entries up to LLM hourly limit (20 for test)
-        for _ in range(19):  # Already have 1
+        # Add entries up to LLM daily limit (30 for test)
+        for _ in range(29):  # Already have 1
             entry = RateLimitEntry(
                 session_id=session_id,
                 ip_address=ip_address,
@@ -443,37 +421,38 @@ class TestRateLimitHeaders:
         response = do_transcribe(rate_limited_client)
 
         assert response.status_code == 202
-        assert "X-RateLimit-Limit-Hour" in response.headers
-        assert "X-RateLimit-Remaining-Hour" in response.headers
         assert "X-RateLimit-Limit-Day" in response.headers
         assert "X-RateLimit-Remaining-Day" in response.headers
         assert "X-RateLimit-Reset" in response.headers
 
         # Check values
-        assert response.headers["X-RateLimit-Limit-Hour"] == "2"
-        assert response.headers["X-RateLimit-Remaining-Hour"] == "1"  # Used 1 of 2
+        assert response.headers["X-RateLimit-Limit-Day"] == "3"
+        assert response.headers["X-RateLimit-Remaining-Day"] == "2"  # Used 1 of 3
 
     def test_429_response_includes_headers(self, rate_limited_client, rate_limit_settings):
         """429 responses should include rate limit headers and Retry-After."""
         mock_transcribe_success(rate_limit_settings)
 
-        # Exhaust limit
+        # Exhaust daily limit (3)
+        do_transcribe(rate_limited_client)
         do_transcribe(rate_limited_client)
         do_transcribe(rate_limited_client)
 
         response = do_transcribe(rate_limited_client)
 
         assert response.status_code == 429
-        assert "X-RateLimit-Limit-Hour" in response.headers
-        assert "X-RateLimit-Remaining-Hour" in response.headers
+        assert "X-RateLimit-Limit-Day" in response.headers
+        assert "X-RateLimit-Remaining-Day" in response.headers
         assert "Retry-After" in response.headers
 
-        assert response.headers["X-RateLimit-Remaining-Hour"] == "0"
+        assert response.headers["X-RateLimit-Remaining-Day"] == "0"
 
     def test_retry_after_is_positive(self, rate_limited_client, rate_limit_settings):
         """Retry-After header should be a positive integer."""
         mock_transcribe_success(rate_limit_settings)
 
+        # Exhaust daily limit (3)
+        do_transcribe(rate_limited_client)
         do_transcribe(rate_limited_client)
         do_transcribe(rate_limited_client)
 
@@ -495,6 +474,8 @@ class TestRateLimitResponseFormat:
         """429 response body should have correct structure."""
         mock_transcribe_success(rate_limit_settings)
 
+        # Exhaust daily limit (3)
+        do_transcribe(rate_limited_client)
         do_transcribe(rate_limited_client)
         do_transcribe(rate_limited_client)
 
@@ -512,77 +493,14 @@ class TestRateLimitResponseFormat:
         assert data["error"] == "rate_limit_exceeded"
 
         # Check limits structure
-        assert "hour" in data["limits"]
         assert "day" in data["limits"]
         assert "ip_day" in data["limits"]
         assert "global_day" in data["limits"]
 
         # Check limit info structure
-        hour_info = data["limits"]["hour"]
-        assert "limit" in hour_info
-        assert "remaining" in hour_info
-        assert "reset" in hour_info
+        day_info = data["limits"]["day"]
+        assert "limit" in day_info
+        assert "remaining" in day_info
+        assert "reset" in day_info
 
 
-# =============================================================================
-# Priority Order Tests
-# =============================================================================
-
-
-class TestRateLimitPriorityOrder:
-    """Tests for rate limit priority order (longest wait wins)."""
-
-    def test_reports_longest_wait_when_multiple_exceeded(
-        self, rate_limited_client, rate_limit_settings, test_engine
-    ):
-        """When multiple limits exceeded, should report the one with longest wait.
-
-        Design Decision: Longest wait wins
-        ------------------------------------
-        If both hourly AND daily limits are exceeded, we report "daily limit"
-        because that's the one with the longest retry_after. Telling the user
-        "try again in 45 minutes" would be misleading if they'd still hit the
-        daily limit after waiting.
-        """
-        from sqlalchemy.orm import sessionmaker
-
-        mock_transcribe_success(rate_limit_settings)
-
-        # Make first request
-        do_transcribe(rate_limited_client)
-
-        # Get session info
-        TestingSessionLocal = sessionmaker(bind=test_engine)
-        db = TestingSessionLocal()
-        entries = db.query(RateLimitEntry).all()
-        session_id = entries[0].session_id
-        ip_address = entries[0].ip_address
-
-        # Add entry within the hour (to max out hourly)
-        entry = RateLimitEntry(
-            session_id=session_id,
-            ip_address=ip_address,
-            action="transcribe",
-        )
-        db.add(entry)
-
-        # Add entries outside hour but within day (to max out daily)
-        for _ in range(2):
-            entry = RateLimitEntry(
-                session_id=session_id,
-                ip_address=ip_address,
-                action="transcribe",
-                created_at=datetime.utcnow() - timedelta(hours=2),
-            )
-            db.add(entry)
-        db.commit()
-        db.close()
-
-        # Now hourly=2 (at limit), daily=4 (over limit of 3)
-        # Both are exceeded, but daily has longer wait
-        response = do_transcribe(rate_limited_client)
-        data = response.json()
-
-        # Should report daily (longer wait) not hourly
-        assert data["limit_type"] == "day"
-        assert "Daily limit" in data["message"]

@@ -40,22 +40,18 @@ describe('API Client', () => {
   describe('parseRateLimitHeaders', () => {
     it('parses all rate limit headers correctly', () => {
       const headers = new Headers({
-        'X-RateLimit-Limit-Hour': '5',
-        'X-RateLimit-Remaining-Hour': '3',
         'X-RateLimit-Limit-Day': '20',
         'X-RateLimit-Remaining-Day': '15',
-        'X-RateLimit-Reset': '1703505600',
+        'X-RateLimit-Reset': '1703548800',
       })
       const response = new Response(null, { headers })
 
       const result = parseRateLimitHeaders(response)
 
       expect(result).not.toBeNull()
-      expect(result!.hour.limit).toBe(5)
-      expect(result!.hour.remaining).toBe(3)
-      expect(result!.hour.reset).toBe(1703505600)
       expect(result!.day.limit).toBe(20)
       expect(result!.day.remaining).toBe(15)
+      expect(result!.day.reset).toBe(1703548800)
     })
 
     it('returns null when headers are missing', () => {
@@ -68,7 +64,7 @@ describe('API Client', () => {
 
     it('returns null when some headers are missing', () => {
       const headers = new Headers({
-        'X-RateLimit-Limit-Hour': '5',
+        'X-RateLimit-Limit-Day': '20',
         // Missing other headers
       })
       const response = new Response(null, { headers })
@@ -547,12 +543,11 @@ describe('API Client', () => {
     it('throws ApiError with rate limit info on 429', async () => {
       const rateLimitError = {
         error: 'rate_limit_exceeded',
-        message: 'Hourly limit reached',
-        limit_type: 'hour',
+        message: 'Daily limit reached',
+        limit_type: 'day',
         retry_after: 1800,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
-          day: { limit: 20, remaining: 15, reset: 1703548800 },
+          day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 15, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 500, reset: 1703548800 },
         },
@@ -563,11 +558,9 @@ describe('API Client', () => {
         status: 429,
         headers: new Headers({
           'Content-Type': 'application/json',
-          'X-RateLimit-Limit-Hour': '5',
-          'X-RateLimit-Remaining-Hour': '0',
           'X-RateLimit-Limit-Day': '20',
-          'X-RateLimit-Remaining-Day': '15',
-          'X-RateLimit-Reset': '1703505600',
+          'X-RateLimit-Remaining-Day': '0',
+          'X-RateLimit-Reset': '1703548800',
         }),
         json: () => Promise.resolve(rateLimitError),
       })
@@ -581,7 +574,7 @@ describe('API Client', () => {
         expect((error as ApiError).isRateLimited).toBe(true)
         expect((error as ApiError).rateLimitError).toBeDefined()
         expect((error as ApiError).rateLimitError?.retry_after).toBe(1800)
-        expect((error as ApiError).rateLimitError?.limit_type).toBe('hour')
+        expect((error as ApiError).rateLimitError?.limit_type).toBe('day')
       }
     })
 
@@ -634,11 +627,9 @@ describe('API Client', () => {
         status: 200,
         headers: new Headers({
           'Content-Type': 'application/json',
-          'X-RateLimit-Limit-Hour': '5',
-          'X-RateLimit-Remaining-Hour': '4',
           'X-RateLimit-Limit-Day': '20',
           'X-RateLimit-Remaining-Day': '19',
-          'X-RateLimit-Reset': '1703505600',
+          'X-RateLimit-Reset': '1703548800',
         }),
         json: () => Promise.resolve({ id: 'entry-123' }),
       })
@@ -646,7 +637,6 @@ describe('API Client', () => {
       const result = await getEntry('entry-123')
 
       expect(result.rateLimitInfo).not.toBeNull()
-      expect(result.rateLimitInfo?.hour.remaining).toBe(4)
       expect(result.rateLimitInfo?.day.remaining).toBe(19)
     })
 

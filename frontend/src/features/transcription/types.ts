@@ -255,7 +255,6 @@ export interface LimitTier {
  * Rate limit info across all tiers
  */
 export interface RateLimitInfo {
-  hour: LimitTier
   day: LimitTier
   ip_day: LimitTier
   global_day: LimitTier
@@ -267,7 +266,7 @@ export interface RateLimitInfo {
 export interface RateLimitError {
   error: 'rate_limit_exceeded'
   message: string
-  limit_type: 'hour' | 'day' | 'ip_day' | 'global_day'
+  limit_type: 'day' | 'ip_day' | 'global_day'
   retry_after: number  // seconds
   limits: RateLimitInfo
 }

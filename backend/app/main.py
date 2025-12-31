@@ -39,11 +39,9 @@ class RateLimitHeaderMiddleware(BaseHTTPMiddleware):
         # Add rate limit headers if result is available
         if hasattr(request.state, "rate_limit_result"):
             result = request.state.rate_limit_result
-            response.headers["X-RateLimit-Limit-Hour"] = str(result.hour.limit)
-            response.headers["X-RateLimit-Remaining-Hour"] = str(result.hour.remaining)
             response.headers["X-RateLimit-Limit-Day"] = str(result.day.limit)
             response.headers["X-RateLimit-Remaining-Day"] = str(result.day.remaining)
-            response.headers["X-RateLimit-Reset"] = str(result.hour.reset)
+            response.headers["X-RateLimit-Reset"] = str(result.day.reset)
 
         return response
 
@@ -96,11 +94,9 @@ async def rate_limit_exceeded_handler(
     """Convert RateLimitExceeded to HTTP 429 response with headers."""
     result = exc.result
     headers = {
-        "X-RateLimit-Limit-Hour": str(result.hour.limit),
-        "X-RateLimit-Remaining-Hour": str(result.hour.remaining),
         "X-RateLimit-Limit-Day": str(result.day.limit),
         "X-RateLimit-Remaining-Day": str(result.day.remaining),
-        "X-RateLimit-Reset": str(result.hour.reset),
+        "X-RateLimit-Reset": str(result.day.reset),
         "Retry-After": str(result.retry_after),
     }
     return JSONResponse(

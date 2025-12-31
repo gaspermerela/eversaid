@@ -6,7 +6,7 @@ import { ApiError } from './types'
 /**
  * Limit type identifier
  */
-export type LimitType = 'hour' | 'day' | 'ip_day' | 'global_day'
+export type LimitType = 'day' | 'ip_day' | 'global_day'
 
 /**
  * Return type for the useRateLimits hook

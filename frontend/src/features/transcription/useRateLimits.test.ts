@@ -44,7 +44,6 @@ describe('useRateLimits', () => {
   describe('updateFromResponse', () => {
     it('updates limits from response headers', () => {
       const mockLimits: RateLimitInfo = {
-        hour: { limit: 5, remaining: 3, reset: 1703505600 },
         day: { limit: 20, remaining: 15, reset: 1703548800 },
         ip_day: { limit: 20, remaining: 15, reset: 1703548800 },
         global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
@@ -88,12 +87,11 @@ describe('useRateLimits', () => {
     it('sets rate limited state from ApiError with rateLimitError', () => {
       const rateLimitError: RateLimitError = {
         error: 'rate_limit_exceeded',
-        message: 'Hourly limit reached',
-        limit_type: 'hour',
+        message: 'Daily limit reached',
+        limit_type: 'day',
         retry_after: 120,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
-          day: { limit: 20, remaining: 15, reset: 1703548800 },
+          day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 15, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
         },
@@ -101,7 +99,7 @@ describe('useRateLimits', () => {
 
       const error = new ApiError(
         429,
-        'Hourly limit reached',
+        'Daily limit reached',
         rateLimitError.limits,
         rateLimitError
       )
@@ -113,7 +111,7 @@ describe('useRateLimits', () => {
       })
 
       expect(result.current.isLimited).toBe(true)
-      expect(result.current.limitType).toBe('hour')
+      expect(result.current.limitType).toBe('day')
       expect(result.current.retryAfter).toBe(120)
       expect(result.current.retryAt).toBeInstanceOf(Date)
       expect(result.current.limits).toEqual(rateLimitError.limits)
@@ -136,7 +134,6 @@ describe('useRateLimits', () => {
 
     it('updates limits from rateLimitInfo on non-429 errors', () => {
       const limits: RateLimitInfo = {
-        hour: { limit: 5, remaining: 2, reset: 1703505600 },
         day: { limit: 20, remaining: 10, reset: 1703548800 },
         ip_day: { limit: 20, remaining: 10, reset: 1703548800 },
         global_day: { limit: 1000, remaining: 500, reset: 1703548800 },
@@ -155,8 +152,7 @@ describe('useRateLimits', () => {
     })
 
     it('handles different limit types', () => {
-      const limitTypes: Array<'hour' | 'day' | 'ip_day' | 'global_day'> = [
-        'hour',
+      const limitTypes: Array<'day' | 'ip_day' | 'global_day'> = [
         'day',
         'ip_day',
         'global_day',
@@ -169,7 +165,6 @@ describe('useRateLimits', () => {
           limit_type: limitType,
           retry_after: 60,
           limits: {
-            hour: { limit: 5, remaining: 0, reset: 1703505600 },
             day: { limit: 20, remaining: 0, reset: 1703548800 },
             ip_day: { limit: 20, remaining: 0, reset: 1703548800 },
             global_day: { limit: 1000, remaining: 0, reset: 1703548800 },
@@ -198,11 +193,10 @@ describe('useRateLimits', () => {
       const rateLimitError: RateLimitError = {
         error: 'rate_limit_exceeded',
         message: 'Limit reached',
-        limit_type: 'hour',
+        limit_type: 'day',
         retry_after: 5,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
-          day: { limit: 20, remaining: 15, reset: 1703548800 },
+          day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 15, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
         },
@@ -237,11 +231,10 @@ describe('useRateLimits', () => {
       const rateLimitError: RateLimitError = {
         error: 'rate_limit_exceeded',
         message: 'Limit reached',
-        limit_type: 'hour',
+        limit_type: 'day',
         retry_after: 3,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
-          day: { limit: 20, remaining: 15, reset: 1703548800 },
+          day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 15, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
         },
@@ -281,7 +274,6 @@ describe('useRateLimits', () => {
         limit_type: 'day',
         retry_after: 300,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
           day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 0, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
@@ -313,11 +305,10 @@ describe('useRateLimits', () => {
       const rateLimitError: RateLimitError = {
         error: 'rate_limit_exceeded',
         message: 'Limit reached',
-        limit_type: 'hour',
+        limit_type: 'day',
         retry_after: 60,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
-          day: { limit: 20, remaining: 15, reset: 1703548800 },
+          day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 15, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
         },
@@ -367,12 +358,11 @@ describe('useRateLimits', () => {
       // First error
       const error1 = new ApiError(429, 'Limit 1', undefined, {
         error: 'rate_limit_exceeded',
-        message: 'Hour limit',
-        limit_type: 'hour',
+        message: 'Day limit',
+        limit_type: 'day',
         retry_after: 30,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
-          day: { limit: 20, remaining: 15, reset: 1703548800 },
+          day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 15, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
         },
@@ -383,7 +373,7 @@ describe('useRateLimits', () => {
       })
 
       expect(result.current.retryAfter).toBe(30)
-      expect(result.current.limitType).toBe('hour')
+      expect(result.current.limitType).toBe('day')
 
       // Advance a bit
       act(() => {
@@ -395,11 +385,10 @@ describe('useRateLimits', () => {
       // Second error with different values
       const error2 = new ApiError(429, 'Limit 2', undefined, {
         error: 'rate_limit_exceeded',
-        message: 'Day limit',
-        limit_type: 'day',
+        message: 'IP day limit',
+        limit_type: 'ip_day',
         retry_after: 120,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
           day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 0, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
@@ -412,18 +401,17 @@ describe('useRateLimits', () => {
 
       // Should be updated with new values
       expect(result.current.retryAfter).toBe(120)
-      expect(result.current.limitType).toBe('day')
+      expect(result.current.limitType).toBe('ip_day')
     })
 
     it('handles unmount during countdown', () => {
       const rateLimitError: RateLimitError = {
         error: 'rate_limit_exceeded',
         message: 'Limit reached',
-        limit_type: 'hour',
+        limit_type: 'day',
         retry_after: 60,
         limits: {
-          hour: { limit: 5, remaining: 0, reset: 1703505600 },
-          day: { limit: 20, remaining: 15, reset: 1703548800 },
+          day: { limit: 20, remaining: 0, reset: 1703548800 },
           ip_day: { limit: 20, remaining: 15, reset: 1703548800 },
           global_day: { limit: 1000, remaining: 900, reset: 1703548800 },
         },

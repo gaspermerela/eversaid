@@ -11,10 +11,8 @@ Key Design Decisions (documented per user request):
    until the endpoint explicitly commits. This prevents locking users out due
    to failed requests.
 
-3. LONGEST WAIT WINS: When multiple limits are exceeded (e.g., both hourly AND
-   daily), we report the limit with the LONGEST retry_after time. This prevents
-   misleading messages like "try again in 45 minutes" when the daily limit would
-   still block them. Instead, they see "try again tomorrow" - the accurate message.
+3. LONGEST WAIT WINS: When multiple limits are exceeded, we report the limit
+   with the LONGEST retry_after time. This ensures users see accurate retry times.
 
 4. RESET = NOW + WINDOW: We calculate reset time as current_time + window_size
    rather than tracking the oldest entry. This is a conservative estimate that's
@@ -52,11 +50,10 @@ class RateLimitResult(BaseModel):
     """Complete rate limit status across all tiers."""
 
     allowed: bool
-    hour: LimitInfo
     day: LimitInfo
     ip_day: LimitInfo
     global_day: LimitInfo
-    exceeded_type: Optional[Literal["hour", "day", "ip_day", "global_day"]] = None
+    exceeded_type: Optional[Literal["day", "ip_day", "global_day"]] = None
     retry_after: Optional[int] = None
 
 
@@ -76,7 +73,6 @@ class RateLimitExceeded(HTTPException):
 
         # Build user-friendly message based on which limit was exceeded
         messages = {
-            "hour": "Hourly limit reached",
             "day": "Daily limit reached",
             "ip_day": "IP daily limit reached",
             "global_day": "Global daily limit reached - service is busy",
@@ -91,7 +87,6 @@ class RateLimitExceeded(HTTPException):
                 "limit_type": result.exceeded_type,
                 "retry_after": result.retry_after,
                 "limits": {
-                    "hour": result.hour.model_dump(),
                     "day": result.day.model_dump(),
                     "ip_day": result.ip_day.model_dump(),
                     "global_day": result.global_day.model_dump(),
@@ -116,21 +111,19 @@ class RateLimitTracker:
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    def _get_limits(self, action: str) -> tuple[int, int, int, int]:
+    def _get_limits(self, action: str) -> tuple[int, int, int]:
         """Get limit values based on action type.
 
-        Returns: (hour_limit, day_limit, ip_day_limit, global_day_limit)
+        Returns: (day_limit, ip_day_limit, global_day_limit)
         """
         if action == "analyze":
             return (
-                self.settings.RATE_LIMIT_LLM_HOUR,
                 self.settings.RATE_LIMIT_LLM_DAY,
                 self.settings.RATE_LIMIT_LLM_IP_DAY,
                 self.settings.RATE_LIMIT_LLM_GLOBAL_DAY,
             )
         # Default to transcribe limits
         return (
-            self.settings.RATE_LIMIT_HOUR,
             self.settings.RATE_LIMIT_DAY,
             self.settings.RATE_LIMIT_IP_DAY,
             self.settings.RATE_LIMIT_GLOBAL_DAY,
@@ -167,9 +160,7 @@ class RateLimitTracker:
         Design Decision: Longest wait wins
         -------------------------------------
         When multiple limits are exceeded, we report the one with the LONGEST
-        retry_after. If both hourly AND daily limits are hit, the user sees
-        "try again tomorrow" (accurate) rather than "try again in 45 minutes"
-        (misleading - they'd still be blocked after waiting).
+        retry_after. This ensures users see accurate retry times.
 
         Design Decision: Reset = now + window
         ----------------------------------------
@@ -177,28 +168,20 @@ class RateLimitTracker:
         (actual reset may be sooner) but simpler than tracking oldest entry.
         """
         now = datetime.utcnow()
-        hour_ago = now - timedelta(hours=1)
         day_ago = now - timedelta(days=1)
 
-        hour_limit, day_limit, ip_day_limit, global_day_limit = self._get_limits(action)
+        day_limit, ip_day_limit, global_day_limit = self._get_limits(action)
 
         # Count current usage for each tier
-        hour_count = self._count_entries(db, action, hour_ago, session_id=session_id)
         day_count = self._count_entries(db, action, day_ago, session_id=session_id)
         ip_day_count = self._count_entries(db, action, day_ago, ip_address=ip_address)
         global_day_count = self._count_entries(db, action, day_ago)
 
-        # Calculate reset times (now + window as conservative estimate)
-        hour_reset = int((now + timedelta(hours=1)).timestamp())
+        # Calculate reset time (now + window as conservative estimate)
         day_reset = int((now + timedelta(days=1)).timestamp())
         now_ts = int(now.timestamp())
 
         # Build limit info for each tier
-        hour_info = LimitInfo(
-            limit=hour_limit,
-            remaining=max(0, hour_limit - hour_count),
-            reset=hour_reset,
-        )
         day_info = LimitInfo(
             limit=day_limit,
             remaining=max(0, day_limit - day_count),
@@ -218,8 +201,6 @@ class RateLimitTracker:
         # Check which limits are exceeded and find the one with longest wait
         # Design Decision: Longest wait wins - see docstring above
         exceeded = []
-        if hour_count >= hour_limit:
-            exceeded.append(("hour", hour_reset - now_ts))
         if day_count >= day_limit:
             exceeded.append(("day", day_reset - now_ts))
         if ip_day_count >= ip_day_limit:
@@ -234,7 +215,6 @@ class RateLimitTracker:
 
             return RateLimitResult(
                 allowed=False,
-                hour=hour_info,
                 day=day_info,
                 ip_day=ip_day_info,
                 global_day=global_day_info,
@@ -251,14 +231,12 @@ class RateLimitTracker:
         db.add(entry)
 
         # Update remaining counts (decremented by 1 since we added an entry)
-        hour_info.remaining = max(0, hour_info.remaining - 1)
         day_info.remaining = max(0, day_info.remaining - 1)
         ip_day_info.remaining = max(0, ip_day_info.remaining - 1)
         global_day_info.remaining = max(0, global_day_info.remaining - 1)
 
         return RateLimitResult(
             allowed=True,
-            hour=hour_info,
             day=day_info,
             ip_day=ip_day_info,
             global_day=global_day_info,

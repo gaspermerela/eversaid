@@ -384,8 +384,7 @@ describe('useTranscription', () => {
 
     it('handles rate limit error', async () => {
       const rateLimitInfo = {
-        hour: { limit: 5, remaining: 0, reset: Date.now() / 1000 + 3600 },
-        day: { limit: 20, remaining: 10, reset: Date.now() / 1000 + 86400 },
+        day: { limit: 20, remaining: 0, reset: Date.now() / 1000 + 86400 },
         ip_day: { limit: 20, remaining: 10, reset: Date.now() / 1000 + 86400 },
         global_day: { limit: 1000, remaining: 500, reset: Date.now() / 1000 + 86400 },
       }
@@ -393,9 +392,9 @@ describe('useTranscription', () => {
       vi.mocked(api.uploadAndTranscribe).mockRejectedValue(
         new ApiError(429, 'Rate limit exceeded', rateLimitInfo, {
           error: 'rate_limit_exceeded',
-          message: 'Hourly limit reached',
-          limit_type: 'hour',
-          retry_after: 3600,
+          message: 'Daily limit reached',
+          limit_type: 'day',
+          retry_after: 86400,
           limits: rateLimitInfo,
         })
       )
@@ -409,7 +408,7 @@ describe('useTranscription', () => {
       })
 
       expect(result.current.status).toBe('error')
-      expect(result.current.error).toBe('Hourly limit reached')
+      expect(result.current.error).toBe('Daily limit reached')
       expect(result.current.rateLimits).toEqual(rateLimitInfo)
     })
 
