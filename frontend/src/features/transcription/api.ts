@@ -1,4 +1,374 @@
 // API client for transcription endpoints
-// TODO: Implement API calls to wrapper backend
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001';
+import type {
+  AnalysisJob,
+  AnalysisProfile,
+  AnalysisResult,
+  CleanedEntry,
+  EntryDetails,
+  Feedback,
+  FeedbackPayload,
+  PaginatedEntries,
+  PaginationParams,
+  RateLimitError,
+  RateLimitInfo,
+  TranscribeOptions,
+  TranscribeResponse,
+  TranscriptionStatus,
+  WaitlistPayload,
+} from './types'
+import { ApiError } from './types'
+
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001'
+
+// =============================================================================
+// Rate Limit Header Parsing
+// =============================================================================
+
+/**
+ * Parse rate limit headers from a Response object
+ */
+export function parseRateLimitHeaders(response: Response): RateLimitInfo | null {
+  const hourLimit = response.headers.get('X-RateLimit-Limit-Hour')
+  const hourRemaining = response.headers.get('X-RateLimit-Remaining-Hour')
+  const dayLimit = response.headers.get('X-RateLimit-Limit-Day')
+  const dayRemaining = response.headers.get('X-RateLimit-Remaining-Day')
+  const reset = response.headers.get('X-RateLimit-Reset')
+
+  // If no rate limit headers present, return null
+  if (!hourLimit || !hourRemaining || !dayLimit || !dayRemaining || !reset) {
+    return null
+  }
+
+  const resetTimestamp = parseInt(reset, 10)
+  // Day reset is approximately 24 hours from hour reset
+  const dayReset = resetTimestamp + 23 * 3600
+
+  return {
+    hour: {
+      limit: parseInt(hourLimit, 10),
+      remaining: parseInt(hourRemaining, 10),
+      reset: resetTimestamp,
+    },
+    day: {
+      limit: parseInt(dayLimit, 10),
+      remaining: parseInt(dayRemaining, 10),
+      reset: dayReset,
+    },
+    // IP and global limits use same day reset
+    ip_day: {
+      limit: parseInt(dayLimit, 10),
+      remaining: parseInt(dayRemaining, 10),
+      reset: dayReset,
+    },
+    global_day: {
+      limit: parseInt(dayLimit, 10),
+      remaining: parseInt(dayRemaining, 10),
+      reset: dayReset,
+    },
+  }
+}
+
+// =============================================================================
+// Core Request Helper
+// =============================================================================
+
+interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  body?: FormData | Record<string, unknown>
+  headers?: Record<string, string>
+}
+
+/**
+ * Make an API request with error handling and rate limit parsing
+ */
+async function request<T>(
+  endpoint: string,
+  options: RequestOptions = {}
+): Promise<{ data: T; rateLimitInfo: RateLimitInfo | null }> {
+  const { method = 'GET', body, headers = {} } = options
+
+  const fetchOptions: RequestInit = {
+    method,
+    credentials: 'include', // Include cookies for session
+    headers: {
+      ...headers,
+    },
+  }
+
+  // Handle body - FormData or JSON
+  if (body) {
+    if (body instanceof FormData) {
+      fetchOptions.body = body
+      // Don't set Content-Type for FormData - browser will set it with boundary
+    } else {
+      fetchOptions.headers = {
+        ...fetchOptions.headers,
+        'Content-Type': 'application/json',
+      }
+      fetchOptions.body = JSON.stringify(body)
+    }
+  }
+
+  const url = `${API_BASE_URL}${endpoint}`
+
+  let response: Response
+  try {
+    response = await fetch(url, fetchOptions)
+  } catch (error) {
+    throw new ApiError(0, 'Network error: Unable to connect to server')
+  }
+
+  const rateLimitInfo = parseRateLimitHeaders(response)
+
+  if (!response.ok) {
+    // Handle rate limit error (429)
+    if (response.status === 429) {
+      let rateLimitError: RateLimitError | undefined
+      try {
+        const errorBody = await response.json()
+        if (errorBody.error === 'rate_limit_exceeded') {
+          rateLimitError = errorBody as RateLimitError
+        }
+      } catch {
+        // If we can't parse the error body, continue without it
+      }
+
+      throw new ApiError(
+        429,
+        rateLimitError?.message || 'Rate limit exceeded',
+        rateLimitError?.limits || rateLimitInfo || undefined,
+        rateLimitError
+      )
+    }
+
+    // Handle other errors
+    let errorMessage = `Request failed with status ${response.status}`
+    try {
+      const errorBody = await response.json()
+      if (errorBody.detail) {
+        errorMessage = typeof errorBody.detail === 'string'
+          ? errorBody.detail
+          : JSON.stringify(errorBody.detail)
+      } else if (errorBody.message) {
+        errorMessage = errorBody.message
+      }
+    } catch {
+      // If we can't parse the error body, use the status text
+      errorMessage = response.statusText || errorMessage
+    }
+
+    throw new ApiError(response.status, errorMessage, rateLimitInfo || undefined)
+  }
+
+  // Parse successful response
+  let data: T
+  const contentType = response.headers.get('Content-Type')
+  if (contentType?.includes('application/json')) {
+    data = await response.json()
+  } else {
+    // For non-JSON responses (like audio streaming), return empty object
+    data = {} as T
+  }
+
+  return { data, rateLimitInfo }
+}
+
+// =============================================================================
+// Transcription Endpoints
+// =============================================================================
+
+/**
+ * Upload audio file and start transcription + cleanup + analysis
+ */
+export async function uploadAndTranscribe(
+  file: File,
+  options: TranscribeOptions = {}
+): Promise<{ data: TranscribeResponse; rateLimitInfo: RateLimitInfo | null }> {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('language', options.language ?? 'sl')
+  formData.append('enable_diarization', String(options.enableDiarization ?? true))
+  formData.append('speaker_count', String(options.speakerCount ?? 2))
+  formData.append('enable_analysis', String(options.enableAnalysis ?? true))
+  formData.append('analysis_profile', options.analysisProfile ?? 'generic-conversation-summary')
+
+  return request<TranscribeResponse>('/api/transcribe', {
+    method: 'POST',
+    body: formData,
+  })
+}
+
+/**
+ * Get transcription status, text, and segments
+ */
+export async function getTranscriptionStatus(
+  transcriptionId: string
+): Promise<{ data: TranscriptionStatus; rateLimitInfo: RateLimitInfo | null }> {
+  return request<TranscriptionStatus>(`/api/transcriptions/${transcriptionId}`)
+}
+
+// =============================================================================
+// Entry Endpoints
+// =============================================================================
+
+/**
+ * List all entries for the current session
+ */
+export async function getEntries(
+  params: PaginationParams = {}
+): Promise<{ data: PaginatedEntries; rateLimitInfo: RateLimitInfo | null }> {
+  const searchParams = new URLSearchParams()
+  if (params.limit) searchParams.append('limit', String(params.limit))
+  if (params.offset) searchParams.append('offset', String(params.offset))
+  if (params.entry_type) searchParams.append('entry_type', params.entry_type)
+
+  const query = searchParams.toString()
+  const endpoint = query ? `/api/entries?${query}` : '/api/entries'
+
+  return request<PaginatedEntries>(endpoint)
+}
+
+/**
+ * Get entry details with transcription
+ */
+export async function getEntry(
+  entryId: string
+): Promise<{ data: EntryDetails; rateLimitInfo: RateLimitInfo | null }> {
+  return request<EntryDetails>(`/api/entries/${entryId}`)
+}
+
+/**
+ * Delete an entry and all associated data
+ */
+export async function deleteEntry(
+  entryId: string
+): Promise<{ data: void; rateLimitInfo: RateLimitInfo | null }> {
+  return request<void>(`/api/entries/${entryId}`, { method: 'DELETE' })
+}
+
+/**
+ * Get the audio URL for an entry (for streaming/downloading)
+ */
+export function getEntryAudioUrl(entryId: string): string {
+  return `${API_BASE_URL}/api/entries/${entryId}/audio`
+}
+
+// =============================================================================
+// Cleanup Endpoints
+// =============================================================================
+
+/**
+ * Get cleaned entry with segments and spellcheck info
+ */
+export async function getCleanedEntry(
+  cleanupId: string
+): Promise<{ data: CleanedEntry; rateLimitInfo: RateLimitInfo | null }> {
+  return request<CleanedEntry>(`/api/cleaned-entries/${cleanupId}`)
+}
+
+/**
+ * Save user edits to cleaned text
+ */
+export async function saveUserEdit(
+  cleanupId: string,
+  editedText: string
+): Promise<{ data: CleanedEntry; rateLimitInfo: RateLimitInfo | null }> {
+  return request<CleanedEntry>(`/api/cleaned-entries/${cleanupId}/user-edit`, {
+    method: 'PUT',
+    body: { edited_text: editedText },
+  })
+}
+
+/**
+ * Revert to AI-generated cleaned text
+ */
+export async function revertUserEdit(
+  cleanupId: string
+): Promise<{ data: CleanedEntry; rateLimitInfo: RateLimitInfo | null }> {
+  return request<CleanedEntry>(`/api/cleaned-entries/${cleanupId}/user-edit`, {
+    method: 'DELETE',
+  })
+}
+
+// =============================================================================
+// Analysis Endpoints
+// =============================================================================
+
+/**
+ * List available analysis profiles
+ */
+export async function getAnalysisProfiles(): Promise<{
+  data: AnalysisProfile[]
+  rateLimitInfo: RateLimitInfo | null
+}> {
+  const result = await request<{ profiles: AnalysisProfile[] }>('/api/analysis-profiles')
+  return {
+    data: result.data.profiles,
+    rateLimitInfo: result.rateLimitInfo,
+  }
+}
+
+/**
+ * Trigger analysis on a cleaned entry
+ */
+export async function triggerAnalysis(
+  cleanupId: string,
+  profileId: string = 'generic-conversation-summary'
+): Promise<{ data: AnalysisJob; rateLimitInfo: RateLimitInfo | null }> {
+  return request<AnalysisJob>(`/api/cleaned-entries/${cleanupId}/analyze`, {
+    method: 'POST',
+    body: { profile_id: profileId },
+  })
+}
+
+/**
+ * Get analysis status and results
+ */
+export async function getAnalysis(
+  analysisId: string
+): Promise<{ data: AnalysisResult; rateLimitInfo: RateLimitInfo | null }> {
+  return request<AnalysisResult>(`/api/analyses/${analysisId}`)
+}
+
+// =============================================================================
+// Feedback Endpoints
+// =============================================================================
+
+/**
+ * Submit feedback for an entry
+ */
+export async function submitFeedback(
+  entryId: string,
+  payload: FeedbackPayload
+): Promise<{ data: Feedback; rateLimitInfo: RateLimitInfo | null }> {
+  return request<Feedback>(`/api/entries/${entryId}/feedback`, {
+    method: 'POST',
+    body: payload as unknown as Record<string, unknown>,
+  })
+}
+
+/**
+ * Get all feedback for an entry
+ */
+export async function getFeedback(
+  entryId: string
+): Promise<{ data: Feedback[]; rateLimitInfo: RateLimitInfo | null }> {
+  return request<Feedback[]>(`/api/entries/${entryId}/feedback`)
+}
+
+// =============================================================================
+// Waitlist Endpoints
+// =============================================================================
+
+/**
+ * Join the waitlist
+ */
+export async function joinWaitlist(
+  payload: WaitlistPayload
+): Promise<{ data: { message: string }; rateLimitInfo: RateLimitInfo | null }> {
+  return request<{ message: string }>('/api/waitlist', {
+    method: 'POST',
+    body: payload as unknown as Record<string, unknown>,
+  })
+}
