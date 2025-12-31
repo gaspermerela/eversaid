@@ -20,6 +20,7 @@ import {
   uploadAndTranscribe,
   getTranscriptionStatus,
   getCleanedEntry,
+  getEntry,
   saveUserEdit,
   revertUserEdit,
   parseRateLimitHeaders,
@@ -182,6 +183,12 @@ export interface UseTranscriptionReturn {
    * @param speakerCount - Number of speakers
    */
   uploadAudio: (file: File, speakerCount: number) => Promise<void>
+
+  /**
+   * Load an existing entry by ID
+   * @param entryId - ID of the entry to load
+   */
+  loadEntry: (entryId: string) => Promise<void>
 
   // Utilities
   /**
@@ -615,6 +622,78 @@ export function useTranscription(
   )
 
   /**
+   * Load an existing entry by ID
+   */
+  const loadEntry = useCallback(
+    async (entryIdToLoad: string): Promise<void> => {
+      // Clean up any existing polling
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current)
+        pollingRef.current = null
+      }
+
+      setError(null)
+      setStatus("loading")
+      setSegments([])
+      setRevertedSegments(new Map())
+
+      try {
+        const { data: entryDetails } = await getEntry(entryIdToLoad)
+
+        // Check if transcription and cleanup are available
+        if (!entryDetails.transcription || !entryDetails.cleanup) {
+          // Entry is still processing
+          const transcriptionStatus = entryDetails.transcription?.status
+          const cleanupStatus = entryDetails.cleanup?.status
+
+          if (
+            transcriptionStatus === "processing" ||
+            transcriptionStatus === "pending" ||
+            cleanupStatus === "processing" ||
+            cleanupStatus === "pending"
+          ) {
+            setEntryId(entryIdToLoad)
+            setStatus("transcribing")
+            // Note: Could optionally start polling here for in-progress entries
+            return
+          }
+
+          throw new Error("Entry data not yet available")
+        }
+
+        // Check for failed status
+        if (entryDetails.transcription.status === "failed") {
+          throw new Error(
+            entryDetails.transcription.error || "Transcription failed"
+          )
+        }
+        if (entryDetails.cleanup.status === "failed") {
+          throw new Error("Cleanup failed")
+        }
+
+        // Transform segments
+        const rawSegments = entryDetails.transcription.segments || []
+        const cleanedSegments = entryDetails.cleanup.segments || []
+        const transformedSegments = transformApiSegments(
+          rawSegments,
+          cleanedSegments
+        )
+
+        setSegments(transformedSegments)
+        setEntryId(entryIdToLoad)
+        setCleanupId(entryDetails.cleanup.id)
+        setStatus("complete")
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to load entry"
+        setError(errorMessage)
+        setStatus("error")
+      }
+    },
+    []
+  )
+
+  /**
    * Reset to initial state
    */
   const reset = useCallback(() => {
@@ -647,6 +726,7 @@ export function useTranscription(
     undoRevert,
     isSegmentReverted,
     uploadAudio,
+    loadEntry,
     getSegmentById,
     getSegmentAtTime,
     reset,

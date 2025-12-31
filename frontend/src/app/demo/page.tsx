@@ -9,10 +9,11 @@ import { FeedbackCard } from "@/components/demo/feedback-card"
 import { TextMoveToolbar } from "@/components/demo/text-move-toolbar"
 import { TranscriptComparisonLayout } from "@/components/demo/transcript-comparison-layout"
 import { AudioPlayer } from "@/components/demo/audio-player"
-import type { Segment, HistoryEntry, SpellcheckError, TextMoveSelection } from "@/components/demo/types"
+import type { Segment, SpellcheckError, TextMoveSelection } from "@/components/demo/types"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 import { useTranscription } from "@/features/transcription/useTranscription"
 import { useFeedback } from "@/features/transcription/useFeedback"
+import { useEntries } from "@/features/transcription/useEntries"
 
 // Mock spellcheck - in production, call a Slovenian spellcheck API
 const checkSpelling = (text: string): SpellcheckError[] => {
@@ -87,16 +88,8 @@ export default function DemoPage() {
   // Analysis State
   const [analysisType, setAnalysisType] = useState<"summary" | "action-items" | "sentiment">("summary")
 
-  // History entries
-  const [historyEntries] = useState<HistoryEntry[]>([
-    {
-      id: "entry-1",
-      filename: "team-meeting.mp3",
-      duration: "03:28",
-      status: "complete",
-      timestamp: "2025-01-15T10:30:00Z",
-    },
-  ])
+  // Entry history hook
+  const entriesHook = useEntries()
 
   // Analysis data
   const analysisData = {
@@ -406,6 +399,14 @@ export default function DemoPage() {
     }
   }, [feedbackHook.rating, feedbackHook.isSubmitted, feedbackHook.isSubmitting, feedbackHook])
 
+  // Refresh entry list after upload completes
+  useEffect(() => {
+    if (transcription.status === 'complete' && transcription.entryId) {
+      entriesHook.refresh()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcription.status, transcription.entryId])
+
   // Waitlist Handlers
   const handleOpenWaitlist = useCallback((type: "extended_usage" | "api_access" = "extended_usage") => {
     setWaitlistType(type)
@@ -444,6 +445,11 @@ export default function DemoPage() {
   const handleSpeedChange = useCallback((speed: number) => {
     setPlaybackSpeed(speed)
   }, [])
+
+  const handleEntrySelect = useCallback(async (entryId: string) => {
+    await transcription.loadEntry(entryId)
+    feedbackHook.reset()
+  }, [transcription, feedbackHook])
 
   const editingCount = Array.from(editedTexts.entries()).filter(([id, text]) => {
     const segment = transcription.segments.find((s) => s.id === id)
@@ -540,7 +546,12 @@ export default function DemoPage() {
           </div>
 
           <div className="space-y-6">
-            <EntryHistoryCard entries={historyEntries} />
+            <EntryHistoryCard
+              entries={entriesHook.entries}
+              activeId={transcription.entryId}
+              onSelect={handleEntrySelect}
+              isEmpty={entriesHook.entries.length === 0 && !entriesHook.isLoading}
+            />
             <FeedbackCard
               rating={feedbackHook.rating}
               feedback={feedbackHook.feedbackText}

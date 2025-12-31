@@ -53,6 +53,17 @@ export function formatTime(seconds: number): string {
 }
 
 /**
+ * Format seconds as "MM:SS" duration string (with leading zeros)
+ * @param totalSeconds - Duration in seconds
+ * @returns Formatted duration string like "03:28"
+ */
+export function formatDuration(totalSeconds: number): string {
+  const mins = Math.floor(totalSeconds / 60)
+  const secs = Math.floor(totalSeconds % 60)
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+}
+
+/**
  * Format seconds as "M:SS – M:SS" time range string
  * @param startSeconds - Start time in seconds
  * @param endSeconds - End time in seconds

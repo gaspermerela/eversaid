@@ -15,6 +15,7 @@ export interface SegmentWithTime extends Segment {
  */
 export type ProcessingStatus =
   | "idle"
+  | "loading"
   | "uploading"
   | "transcribing"
   | "cleaning"
