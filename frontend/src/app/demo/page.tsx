@@ -14,6 +14,9 @@ import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 import { useTranscription } from "@/features/transcription/useTranscription"
 import { useFeedback } from "@/features/transcription/useFeedback"
 import { useEntries } from "@/features/transcription/useEntries"
+import { useAudioPlayer } from "@/features/transcription/useAudioPlayer"
+import { useAnalysis } from "@/features/transcription/useAnalysis"
+import { getEntryAudioUrl } from "@/features/transcription/api"
 
 // Mock spellcheck - in production, call a Slovenian spellcheck API
 const checkSpelling = (text: string): SpellcheckError[] => {
@@ -56,12 +59,6 @@ export default function DemoPage() {
   // UI State
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null)
 
-  // Audio Player State
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(34)
-  const [duration] = useState(285) // Updated duration for more segments (4:45)
-  const [playbackSpeed, setPlaybackSpeed] = useState(1)
-
   // Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedSpeakerCount, setSelectedSpeakerCount] = useState(2)
@@ -91,27 +88,19 @@ export default function DemoPage() {
   // Entry history hook
   const entriesHook = useEntries()
 
-  // Analysis data
-  const analysisData = {
-    summary:
-      "A discussion about project planning and resource allocation, focusing on establishing a timeline and bringing in external expertise for technical aspects.",
-    topics: [
-      "Project timeline",
-      "Research phase",
-      "External consultants",
-      "Machine learning expertise",
-      "Budget allocation",
-      "Vendor selection",
-    ],
-    keyPoints: [
-      "Proposed starting with research phase before design work",
-      "Need to ensure team alignment on project approach",
-      "Considering bringing in external consultants for technical expertise",
-      "Identified need for machine learning expertise in data processing",
-      "Q3 contingency fund available for consultant costs",
-      "Follow-up meeting scheduled for Thursday to finalize requirements",
-    ],
-  }
+  // Audio playback hook
+  const audioUrl = transcription.entryId ? getEntryAudioUrl(transcription.entryId) : null
+
+  const audioPlayer = useAudioPlayer({
+    segments: transcription.segments,
+    onSegmentChange: (segmentId) => setActiveSegmentId(segmentId)
+  })
+
+  // Analysis hook
+  const analysisHook = useAnalysis({
+    cleanupId: transcription.cleanupId,
+    autoTrigger: true,
+  })
 
   // Waitlist modal state
   const [waitlistState, setWaitlistState] = useState<"hidden" | "toast" | "form" | "success">("hidden")
@@ -407,6 +396,22 @@ export default function DemoPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcription.status, transcription.entryId])
 
+  // Load analysis profiles on mount
+  useEffect(() => {
+    analysisHook.loadProfiles()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Auto-scroll to active segment during playback
+  useEffect(() => {
+    if (audioPlayer.isPlaying && audioPlayer.activeSegmentId) {
+      const segmentElement = document.querySelector(`[data-segment-id="${audioPlayer.activeSegmentId}"]`)
+      if (segmentElement) {
+        segmentElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }
+  }, [audioPlayer.isPlaying, audioPlayer.activeSegmentId])
+
   // Waitlist Handlers
   const handleOpenWaitlist = useCallback((type: "extended_usage" | "api_access" = "extended_usage") => {
     setWaitlistType(type)
@@ -428,28 +433,42 @@ export default function DemoPage() {
 
   const handleSegmentClick = useCallback((id: string) => {
     setActiveSegmentId(id)
-  }, [])
+    audioPlayer.seekToSegment(id)
+  }, [audioPlayer])
 
   const handlePlayPause = useCallback(() => {
-    setIsPlaying(!isPlaying)
-  }, [isPlaying])
+    audioPlayer.togglePlayPause()
+  }, [audioPlayer])
 
   const handleSeek = useCallback((time: number) => {
-    setCurrentTime(time)
-  }, [])
+    audioPlayer.seek(time)
+  }, [audioPlayer])
 
   const handleDownload = useCallback(() => {
-    console.log("Download requested")
-  }, [])
+    if (!audioUrl || !transcription.entryId) return
+
+    // Trigger download by creating a temporary link
+    const link = document.createElement('a')
+    link.href = audioUrl
+    link.download = `eversaid-${transcription.entryId}.mp3`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }, [audioUrl, transcription.entryId])
 
   const handleSpeedChange = useCallback((speed: number) => {
-    setPlaybackSpeed(speed)
-  }, [])
+    audioPlayer.setPlaybackSpeed(speed as typeof audioPlayer.playbackSpeed)
+  }, [audioPlayer])
 
   const handleEntrySelect = useCallback(async (entryId: string) => {
     await transcription.loadEntry(entryId)
     feedbackHook.reset()
-  }, [transcription, feedbackHook])
+    analysisHook.reset()
+  }, [transcription, feedbackHook, analysisHook])
+
+  const handleRerunAnalysis = useCallback((profileId: string) => {
+    analysisHook.analyze(profileId)
+  }, [analysisHook])
 
   const editingCount = Array.from(editedTexts.entries()).filter(([id, text]) => {
     const segment = transcription.segments.find((s) => s.id === id)
@@ -488,12 +507,15 @@ export default function DemoPage() {
 
       <main className="mx-auto px-6 max-w-[1400px]">
         <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden mb-8">
+          {audioUrl && (
+            <audio src={audioUrl} {...audioPlayer.audioProps} preload="metadata" className="hidden" />
+          )}
           <div className="bg-gradient-to-b from-muted/30 to-transparent border-b border-border/50 rounded-t-lg">
             <AudioPlayer
-              isPlaying={isPlaying}
-              currentTime={currentTime}
-              duration={duration}
-              playbackSpeed={playbackSpeed}
+              isPlaying={audioPlayer.isPlaying}
+              currentTime={audioPlayer.currentTime}
+              duration={audioPlayer.duration}
+              playbackSpeed={audioPlayer.playbackSpeed}
               onPlayPause={handlePlayPause}
               onSeek={handleSeek}
               onSpeedChange={handleSpeedChange}
@@ -538,10 +560,14 @@ export default function DemoPage() {
           <div className="lg:col-span-2">
             <AnalysisSection
               analysisType={analysisType}
-              analysisData={analysisData}
+              analysisData={analysisHook.data}
               showAnalysisMenu={showAnalysisMenu}
+              isLoading={analysisHook.isLoading}
+              error={analysisHook.error}
+              profiles={analysisHook.profiles}
               onAnalysisTypeChange={setAnalysisType}
               onToggleAnalysisMenu={handleToggleAnalysisMenu}
+              onRerunAnalysis={handleRerunAnalysis}
             />
           </div>
 
