@@ -358,11 +358,16 @@ describe('useTranscription', () => {
       vi.mocked(api.getCleanedEntry).mockResolvedValue({
         data: {
           id: 'cleanup-123',
-          entry_id: 'entry-123',
+          voice_entry_id: 'entry-123',
+          transcription_id: 'trans-123',
+          user_id: 'user-123',
           cleaned_text: 'Hello world.',
           user_edited_text: null,
           status: 'completed',
-          segments: [
+          model_name: 'gpt-4',
+          is_primary: true,
+          created_at: new Date().toISOString(),
+          cleaned_segments: [
             { id: 'clean-1', start: 0, end: 5, text: 'Hello world.', speaker_id: 0 },
           ],
         },

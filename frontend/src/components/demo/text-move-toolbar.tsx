@@ -31,7 +31,7 @@ export function TextMoveToolbar({ selectedText, isSelectingTarget, onMoveClick, 
           </>
         ) : (
           <>
-            <div className="max-w-[200px] truncate text-sm text-primary-foreground">"{selectedText}"</div>
+            <div className="max-w-[200px] truncate text-sm text-primary-foreground">&quot;{selectedText}&quot;</div>
             <button
               onClick={onMoveClick}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-primary rounded-lg text-sm font-semibold text-accent-foreground transition-all shadow-[0_2px_8px_rgba(56,189,248,0.3)]"

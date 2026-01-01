@@ -1,6 +1,4 @@
-export type DemoFooterProps = {}
-
-export function DemoFooter({}: DemoFooterProps) {
+export function DemoFooter() {
   return (
     <footer className="bg-[#0F172A] px-8 md:px-12 py-6 mt-12 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
       <div className="flex flex-col md:flex-row items-center gap-6">

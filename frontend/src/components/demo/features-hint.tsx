@@ -1,8 +1,6 @@
 import { Check } from "lucide-react"
 
-export type FeaturesHintProps = {}
-
-export function FeaturesHint({}: FeaturesHintProps) {
+export function FeaturesHint() {
   const features = [
     "Side-by-side comparison",
     "Speaker identification",
@@ -13,7 +11,7 @@ export function FeaturesHint({}: FeaturesHintProps) {
 
   return (
     <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6">
-      <h4 className="text-[13px] font-bold text-[#38BDF8] uppercase tracking-[1px] mb-4">What you'll get</h4>
+      <h4 className="text-[13px] font-bold text-[#38BDF8] uppercase tracking-[1px] mb-4">What you&apos;ll get</h4>
       <div className="space-y-3">
         {features.map((feature) => (
           <div key={feature} className="flex items-center gap-3 text-[13px] text-[#64748B]">

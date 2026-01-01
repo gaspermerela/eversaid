@@ -27,6 +27,7 @@ export function useNetworkStatus(): NetworkStatus {
   useEffect(() => {
     // Set initial state from navigator (client-side only)
     if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR-safe initialization
       setIsOnline(navigator.onLine)
     }
 

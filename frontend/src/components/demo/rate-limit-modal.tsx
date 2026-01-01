@@ -34,9 +34,10 @@ export function RateLimitModal({
   const tCommon = useTranslations('common')
   const [countdown, setCountdown] = useState<number>(retryAfter ?? 0)
 
-  // Sync countdown with retryAfter prop
+  // Sync countdown with retryAfter prop when it changes
   useEffect(() => {
     if (retryAfter !== null && retryAfter > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync from prop
       setCountdown(retryAfter)
     }
   }, [retryAfter])

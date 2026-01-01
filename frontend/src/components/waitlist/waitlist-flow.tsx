@@ -256,9 +256,9 @@ export function WaitlistFlow({
               </div>
 
               {/* Success Message */}
-              <h3 className="text-[22px] font-extrabold text-[#0F172A] text-center mb-2">You're on the list!</h3>
+              <h3 className="text-[22px] font-extrabold text-[#0F172A] text-center mb-2">You&apos;re on the list!</h3>
               <p className="text-[15px] text-[#64748B] text-center mb-7 leading-relaxed">
-                We'll email you when your spot is ready. Move up by referring friends.
+                We&apos;ll email you when your spot is ready. Move up by referring friends.
               </p>
 
               {/* Referral Section */}
