@@ -150,20 +150,70 @@ async def get_entry(
     session: SessionModel = Depends(get_session),
     core_api: CoreAPIClient = Depends(get_core_api),
 ):
-    """Get entry details with transcription."""
-    response = await core_api.request(
+    """Get entry details with transcription and cleanup.
+
+    WORKAROUND: The core API's GET /entries/{id} endpoint returns entry metadata
+    and transcription, but NOT cleanup data. The cleanup_id is only available in
+    the entries list response (latest_cleaned_entry.id).
+
+    This wrapper composes a full response by:
+    1. Fetching entry details (includes primary_transcription)
+    2. Fetching entries list to find this entry's cleanup_id
+    3. Fetching cleanup details if available
+
+    TODO: This should be fixed in the core API to return cleanup data directly,
+    eliminating the need for multiple round-trips.
+    """
+    # 1. Fetch entry details (includes primary_transcription)
+    entry_response = await core_api.request(
         "GET",
         f"/api/v1/entries/{entry_id}",
         session.access_token,
     )
 
-    if response.status_code >= 400:
+    if entry_response.status_code >= 400:
         raise CoreAPIError(
-            status_code=response.status_code,
-            detail=response.text,
+            status_code=entry_response.status_code,
+            detail=entry_response.text,
         )
 
-    return response.json()
+    entry_data = entry_response.json()
+
+    # 2. Find cleanup_id from entries list (workaround for core API limitation)
+    # The entries list includes latest_cleaned_entry.id which we need
+    list_response = await core_api.request(
+        "GET",
+        "/api/v1/entries",
+        session.access_token,
+        params={"limit": 100},  # Fetch enough to find the entry # TODO: change the dirty fix
+    )
+
+    cleanup_id = None
+    cleanup_data = None
+
+    if list_response.status_code == 200:
+        list_data = list_response.json()
+        for entry in list_data.get("entries", []):
+            if str(entry.get("id")) == entry_id:
+                latest_cleaned = entry.get("latest_cleaned_entry")
+                if latest_cleaned:
+                    cleanup_id = latest_cleaned.get("id")
+                break
+
+    # 3. Fetch cleanup details if we found a cleanup_id
+    if cleanup_id:
+        cleanup_response = await core_api.request(
+            "GET",
+            f"/api/v1/cleaned-entries/{cleanup_id}",
+            session.access_token,
+        )
+        if cleanup_response.status_code == 200:
+            cleanup_data = cleanup_response.json()
+
+    # 4. Compose response with cleanup data included
+    entry_data["cleanup"] = cleanup_data
+
+    return entry_data
 
 
 @router.delete("/api/entries/{entry_id}")

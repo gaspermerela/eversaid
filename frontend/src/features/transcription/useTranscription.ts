@@ -448,7 +448,7 @@ export function useTranscription(
                 // Transform and set segments
                 const transformedSegments = transformApiSegments(
                   transcriptionStatus.segments,
-                  cleanedEntry.segments
+                  cleanedEntry.cleaned_segments || []
                 )
                 setSegments(transformedSegments)
                 setStatus("complete")
@@ -629,6 +629,9 @@ export function useTranscription(
 
   /**
    * Load an existing entry by ID
+   *
+   * The wrapper backend composes a full response including cleanup data,
+   * so we don't need to fetch cleanup separately.
    */
   const loadEntry = useCallback(
     async (entryIdToLoad: string): Promise<void> => {
@@ -644,42 +647,49 @@ export function useTranscription(
       setRevertedSegments(new Map())
 
       try {
+        // Wrapper backend returns entry + primary_transcription + cleanup (composed)
         const { data: entryDetails } = await getEntry(entryIdToLoad)
 
-        // Check if transcription and cleanup are available
-        if (!entryDetails.transcription || !entryDetails.cleanup) {
-          // Entry is still processing
-          const transcriptionStatus = entryDetails.transcription?.status
-          const cleanupStatus = entryDetails.cleanup?.status
-
-          if (
-            transcriptionStatus === "processing" ||
-            transcriptionStatus === "pending" ||
-            cleanupStatus === "processing" ||
-            cleanupStatus === "pending"
-          ) {
-            setEntryId(entryIdToLoad)
-            setStatus("transcribing")
-            // Note: Could optionally start polling here for in-progress entries
-            return
-          }
-
-          throw new Error("Entry data not yet available")
+        // Check transcription status
+        const transcription = entryDetails.primary_transcription
+        if (!transcription) {
+          setEntryId(entryIdToLoad)
+          setStatus("transcribing")
+          return
         }
 
-        // Check for failed status
-        if (entryDetails.transcription.status === "failed") {
-          throw new Error(
-            entryDetails.transcription.error || "Transcription failed"
-          )
+        if (transcription.status === "processing" || transcription.status === "pending") {
+          setEntryId(entryIdToLoad)
+          setStatus("transcribing")
+          return
         }
-        if (entryDetails.cleanup.status === "failed") {
-          throw new Error("Cleanup failed")
+
+        if (transcription.status === "failed") {
+          throw new Error(transcription.error || "Transcription failed")
+        }
+
+        // Check cleanup status (cleanup is composed by wrapper backend)
+        const cleanupData = entryDetails.cleanup
+        if (!cleanupData) {
+          setEntryId(entryIdToLoad)
+          setStatus("cleaning")
+          return
+        }
+
+        if (cleanupData.status === "processing" || cleanupData.status === "pending") {
+          setEntryId(entryIdToLoad)
+          setCleanupId(cleanupData.id)
+          setStatus("cleaning")
+          return
+        }
+
+        if (cleanupData.status === "failed") {
+          throw new Error(cleanupData.error_message || "Cleanup failed")
         }
 
         // Transform segments
-        const rawSegments = entryDetails.transcription.segments || []
-        const cleanedSegments = entryDetails.cleanup.segments || []
+        const rawSegments = transcription.segments || []
+        const cleanedSegments = cleanupData.cleaned_segments || []
         const transformedSegments = transformApiSegments(
           rawSegments,
           cleanedSegments
@@ -687,10 +697,8 @@ export function useTranscription(
 
         setSegments(transformedSegments)
         setEntryId(entryIdToLoad)
-        setCleanupId(entryDetails.cleanup.id)
-        // Set analysisId from most recent analysis if available
-        const latestAnalysis = entryDetails.analyses?.[0]
-        setAnalysisId(latestAnalysis?.id ?? null)
+        setCleanupId(cleanupData.id)
+        setAnalysisId(null) // Analysis is managed by useAnalysis hook
         setStatus("complete")
       } catch (err) {
         const errorMessage =

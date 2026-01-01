@@ -54,7 +54,7 @@ export interface UseAnalysisReturn {
 /**
  * Parse raw analysis result into typed structure
  */
-function parseAnalysisResult(result: Record<string, unknown> | undefined): ParsedAnalysisData | null {
+function parseAnalysisResult(result: Record<string, unknown> | null | undefined): ParsedAnalysisData | null {
   if (!result) return null
 
   // The API returns different fields based on profile
@@ -152,7 +152,7 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
         clearPolling()
         setIsPolling(false)
         setIsLoading(false)
-        setError(result.error || 'Analysis failed')
+        setError(result.error_message || 'Analysis failed')
         toast.error('Analysis failed')
       }
       // If still pending/processing, keep polling

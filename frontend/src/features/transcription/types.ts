@@ -119,15 +119,54 @@ export interface CleanedSegment {
 }
 
 /**
+ * Segment validation metadata for multi-speaker cleanup
+ */
+export interface SegmentValidation {
+  expected_count: number
+  parsed_count: number
+  failed_segments: number[]
+  overall_status: 'success' | 'partial' | 'failed'
+}
+
+/**
+ * Spelling issue from spellcheck
+ */
+export interface SpellingIssue {
+  word: string
+  start: number
+  end: number
+  suggestions: string[]
+}
+
+/**
  * Cleaned entry response from GET /api/cleaned-entries/{id}
+ * Matches CleanedEntryDetail from core backend
  */
 export interface CleanedEntry {
   id: string
-  entry_id: string
-  cleaned_text: string
-  user_edited_text: string | null
-  segments: CleanedSegment[]
+  voice_entry_id: string
+  transcription_id: string
+  user_id: string
+  cleaned_text: string | null
+  llm_raw_response?: string | null
   status: 'pending' | 'processing' | 'completed' | 'failed'
+  model_name: string
+  temperature?: number | null
+  top_p?: number | null
+  error_message?: string | null
+  is_primary: boolean
+  processing_time_seconds?: number | null
+  created_at: string
+  processing_started_at?: string | null
+  processing_completed_at?: string | null
+  prompt_template_id?: number | null
+  prompt_name?: string | null
+  prompt_description?: string | null
+  user_edited_text: string | null
+  user_edited_at?: string | null
+  cleaned_segments?: CleanedSegment[] | null
+  segment_validation?: SegmentValidation | null
+  spelling_issues?: SpellingIssue[] | null
 }
 
 /**
@@ -179,15 +218,23 @@ export interface PaginatedEntries {
 
 /**
  * Full entry details from GET /api/entries/{id}
+ *
+ * Note: The wrapper backend composes this response by fetching from multiple
+ * core API endpoints. This is a WORKAROUND for a core API design gap where
+ * GET /entries/{id} doesn't return cleanup data.
+ *
+ * TODO: Fix core API to return cleanup data directly, then simplify wrapper.
  */
 export interface EntryDetails {
   id: string
-  filename: string
-  duration: number
-  created_at: string
-  transcription?: TranscriptionStatus
-  cleanup?: CleanedEntry
-  analyses?: AnalysisResult[]
+  original_filename: string
+  saved_filename: string
+  duration_seconds: number
+  entry_type: string
+  uploaded_at: string
+  primary_transcription?: TranscriptionStatus
+  /** Cleanup data - composed by wrapper backend (may be null if not yet available) */
+  cleanup?: CleanedEntry | null
 }
 
 /**
@@ -213,14 +260,25 @@ export interface AnalysisJob {
 
 /**
  * Analysis result from GET /api/analyses/{id}
+ * Matches AnalysisDetail from core backend
  */
 export interface AnalysisResult {
   id: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
+  cleaned_entry_id: string
+  user_id: string
   profile_id: string
   profile_label?: string
-  result?: Record<string, unknown>
-  error?: string
+  result?: Record<string, unknown> | null
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  model_name: string
+  temperature?: number | null
+  top_p?: number | null
+  error_message?: string | null
+  llm_raw_response?: string | null
+  processing_time_seconds?: number | null
+  created_at: string
+  processing_started_at?: string | null
+  processing_completed_at?: string | null
 }
 
 /**
