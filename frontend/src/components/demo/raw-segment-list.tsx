@@ -34,12 +34,6 @@ export const RawSegmentList = forwardRef<HTMLDivElement, RawSegmentListProps>(
     },
     ref,
   ) => {
-    console.log(
-      "[v0] RawSegmentList rendering with segments:",
-      segments.length,
-      segments.map((s) => s.id),
-    )
-
     const handleMouseUp = (segmentId: string) => {
       const selection = window.getSelection()
       if (selection && selection.toString().trim()) {

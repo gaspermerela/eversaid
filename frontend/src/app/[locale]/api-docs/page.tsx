@@ -49,7 +49,6 @@ export default function ApiDocsPage() {
   }
 
   const handleWaitlistSubmit = () => {
-    console.log("[v0] Waitlist submitted with email:", waitlistEmail)
     setWaitlistReferralCode("ABC123XYZ")
     setWaitlistState("success")
   }

@@ -82,12 +82,6 @@ export const EditableSegmentList = forwardRef<HTMLDivElement, EditableSegmentLis
     },
     ref,
   ) => {
-    console.log(
-      "[v0] EditableSegmentList rendering with segments:",
-      segments.length,
-      segments.map((s) => s.id),
-    )
-
     return (
       <div
         ref={ref}

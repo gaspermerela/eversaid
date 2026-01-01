@@ -50,11 +50,6 @@ export function computeDiff(rawText: string, cleanedText: string): DiffToken[] {
   const rawTokens = tokenize(rawText)
   const cleanTokens = tokenize(cleanedText)
 
-  console.log("[v0] computeDiff - rawText:", rawText)
-  console.log("[v0] computeDiff - cleanedText:", cleanedText)
-  console.log("[v0] computeDiff - rawTokens:", rawTokens)
-  console.log("[v0] computeDiff - cleanTokens:", cleanTokens)
-
   // Find LCS to identify unchanged words
   const common = lcs(
     rawTokens.filter((t) => t.trim()),
@@ -114,7 +109,6 @@ export function computeDiff(rawText: string, cleanedText: string): DiffToken[] {
     rawIdx++
   }
 
-  console.log("[v0] computeDiff - result tokens before grouping:", result)
   return result
 }
 
@@ -168,6 +162,5 @@ export function groupDiffTokens(tokens: DiffToken[]): DiffToken[] {
   }
   grouped.push(current)
 
-  console.log("[v0] groupDiffTokens - output:", grouped)
   return grouped
 }
