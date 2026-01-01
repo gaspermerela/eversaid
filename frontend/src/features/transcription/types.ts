@@ -90,11 +90,14 @@ export interface ApiSegment {
 
 /**
  * Transcription status response from GET /api/transcriptions/{id}
+ *
+ * Note: The polling endpoint returns `text` while composed entry details returns `transcribed_text`
  */
 export interface TranscriptionStatus {
   id: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   text?: string
+  transcribed_text?: string  // Used in composed entry details response
   segments?: ApiSegment[]
   error?: string
 }

@@ -441,15 +441,29 @@ export function useTranscription(
               // Fetch cleaned entry
               const { data: cleanedEntry } = await getCleanedEntry(cleanupIdVal)
 
-              if (
-                cleanedEntry.status === "completed" &&
-                transcriptionStatus.segments
-              ) {
+              if (cleanedEntry.status === "completed") {
                 // Transform and set segments
-                const transformedSegments = transformApiSegments(
-                  transcriptionStatus.segments,
+                const rawSegments = transcriptionStatus.segments || []
+                let transformedSegments = transformApiSegments(
+                  rawSegments,
                   cleanedEntry.cleaned_segments || []
                 )
+
+                // Fallback: Create single segment from full text when no diarization
+                // This happens with providers like Groq that don't support diarization
+                if (transformedSegments.length === 0 && transcriptionStatus.text) {
+                  transformedSegments = [
+                    {
+                      id: `fallback-${transcriptionId}`,
+                      speaker: 0,
+                      time: "0:00 – 0:00", // Duration not available in polling context
+                      rawText: transcriptionStatus.text.trim(),
+                      cleanedText: cleanedEntry.cleaned_text?.trim() || transcriptionStatus.text.trim(),
+                      originalRawText: transcriptionStatus.text.trim(),
+                    },
+                  ]
+                }
+
                 setSegments(transformedSegments)
                 setStatus("complete")
                 resolve()
@@ -635,6 +649,8 @@ export function useTranscription(
    */
   const loadEntry = useCallback(
     async (entryIdToLoad: string): Promise<void> => {
+      console.log("[loadEntry] Starting to load entry:", entryIdToLoad)
+
       // Clean up any existing polling
       if (pollingRef.current) {
         clearTimeout(pollingRef.current)
@@ -648,17 +664,22 @@ export function useTranscription(
 
       try {
         // Wrapper backend returns entry + primary_transcription + cleanup (composed)
+        console.log("[loadEntry] Fetching entry details...")
         const { data: entryDetails } = await getEntry(entryIdToLoad)
+        console.log("[loadEntry] Entry details received:", entryDetails)
 
         // Check transcription status
         const transcription = entryDetails.primary_transcription
+        console.log("[loadEntry] Transcription data:", transcription)
         if (!transcription) {
+          console.log("[loadEntry] No transcription data, setting status to transcribing")
           setEntryId(entryIdToLoad)
           setStatus("transcribing")
           return
         }
 
         if (transcription.status === "processing" || transcription.status === "pending") {
+          console.log("[loadEntry] Transcription still processing:", transcription.status)
           setEntryId(entryIdToLoad)
           setStatus("transcribing")
           return
@@ -670,13 +691,16 @@ export function useTranscription(
 
         // Check cleanup status (cleanup is composed by wrapper backend)
         const cleanupData = entryDetails.cleanup
+        console.log("[loadEntry] Cleanup data:", cleanupData)
         if (!cleanupData) {
+          console.log("[loadEntry] No cleanup data, setting status to cleaning")
           setEntryId(entryIdToLoad)
           setStatus("cleaning")
           return
         }
 
         if (cleanupData.status === "processing" || cleanupData.status === "pending") {
+          console.log("[loadEntry] Cleanup still processing:", cleanupData.status)
           setEntryId(entryIdToLoad)
           setCleanupId(cleanupData.id)
           setStatus("cleaning")
@@ -690,17 +714,41 @@ export function useTranscription(
         // Transform segments
         const rawSegments = transcription.segments || []
         const cleanedSegments = cleanupData.cleaned_segments || []
-        const transformedSegments = transformApiSegments(
+        console.log("[loadEntry] Raw segments count:", rawSegments.length)
+        console.log("[loadEntry] Cleaned segments count:", cleanedSegments.length)
+        let transformedSegments = transformApiSegments(
           rawSegments,
           cleanedSegments
         )
+        console.log("[loadEntry] Transformed segments:", transformedSegments.length)
+
+        // Fallback: Create single segment from full text when no diarization segments exist
+        // This happens with providers like Groq that don't support diarization
+        if (transformedSegments.length === 0 && transcription.transcribed_text) {
+          console.log("[loadEntry] No segments, creating fallback from full text")
+          const duration = entryDetails.duration_seconds || 0
+          const timeStr = `${formatTime(0)} – ${formatTime(duration)}`
+          transformedSegments = [
+            {
+              id: `fallback-${entryIdToLoad}`,
+              speaker: 0,
+              time: timeStr,
+              rawText: transcription.transcribed_text.trim(),
+              cleanedText: cleanupData.cleaned_text?.trim() || transcription.transcribed_text.trim(),
+              originalRawText: transcription.transcribed_text.trim(),
+            },
+          ]
+          console.log("[loadEntry] Created fallback segment")
+        }
 
         setSegments(transformedSegments)
         setEntryId(entryIdToLoad)
         setCleanupId(cleanupData.id)
         setAnalysisId(null) // Analysis is managed by useAnalysis hook
         setStatus("complete")
+        console.log("[loadEntry] Entry loaded successfully")
       } catch (err) {
+        console.error("[loadEntry] Error loading entry:", err)
         const errorMessage =
           err instanceof Error ? err.message : "Failed to load entry"
         setError(errorMessage)
