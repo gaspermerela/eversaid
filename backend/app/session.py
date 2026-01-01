@@ -40,7 +40,7 @@ async def _create_anonymous_session(
         HTTPException: If Core API registration/login fails
     """
     session_id = str(uuid.uuid4())
-    email = f"anon-{session_id}@demo.eversaid.local"
+    email = f"anon-{session_id}@anon.eversaid.example"
     password = secrets.token_urlsafe(32)
 
     try:

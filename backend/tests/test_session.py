@@ -57,7 +57,7 @@ class TestSessionCreation:
         # Verify session fields
         assert session.session_id is not None
         assert session.core_api_email.startswith("anon-")
-        assert session.core_api_email.endswith("@demo.eversaid.local")
+        assert session.core_api_email.endswith("@anon.eversaid.example")
         assert session.access_token == "test-token"
         assert session.refresh_token == "test-refresh"
         assert session.ip_address == "127.0.0.1"
@@ -116,7 +116,7 @@ class TestTokenRefresh:
         # Create an existing session with expired token
         session = SessionModel(
             session_id="test-session",
-            core_api_email="test@demo.eversaid.local",
+            core_api_email="test@anon.eversaid.example",
             access_token="old-access-token",
             refresh_token="old-refresh-token",
             token_expires_at=datetime.utcnow() - timedelta(hours=1),
@@ -154,7 +154,7 @@ class TestTokenRefresh:
         """Refresh with invalid token should raise 401."""
         session = SessionModel(
             session_id="test-session",
-            core_api_email="test@demo.eversaid.local",
+            core_api_email="test@anon.eversaid.example",
             access_token="old-access-token",
             refresh_token="expired-refresh-token",
             token_expires_at=datetime.utcnow() - timedelta(hours=1),

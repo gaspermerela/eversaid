@@ -84,7 +84,7 @@ def rate_limited_client(test_engine, rate_limit_settings):
                 201,
                 json={
                     "id": "user-123",
-                    "email": "anon-test@demo.eversaid.local",
+                    "email": "anon-test@anon.eversaid.example",
                     "is_active": True,
                     "role": "user",
                     "created_at": "2025-01-01T00:00:00Z",
@@ -100,7 +100,7 @@ def rate_limited_client(test_engine, rate_limit_settings):
                     "token_type": "bearer",
                     "user": {
                         "id": "user-123",
-                        "email": "anon-test@demo.eversaid.local",
+                        "email": "anon-test@anon.eversaid.example",
                         "is_active": True,
                         "role": "user",
                         "created_at": "2025-01-01T00:00:00Z",
@@ -117,7 +117,7 @@ def rate_limited_client(test_engine, rate_limit_settings):
                     "token_type": "bearer",
                     "user": {
                         "id": "user-123",
-                        "email": "anon-test@demo.eversaid.local",
+                        "email": "anon-test@anon.eversaid.example",
                         "is_active": True,
                         "role": "user",
                         "created_at": "2025-01-01T00:00:00Z",
