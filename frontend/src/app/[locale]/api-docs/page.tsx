@@ -1,11 +1,13 @@
 "use client"
 
-import Link from "next/link"
+import { Link } from "@/i18n/routing"
 import { useState, useEffect } from "react"
 import { Check, LinkIcon } from "lucide-react"
+import { useTranslations } from "next-intl"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 
 export default function ApiDocsPage() {
+  const tNav = useTranslations('navigation')
   const [activeSection, setActiveSection] = useState("quickstart")
   const [activeTab, setActiveTab] = useState<Record<string, string>>({
     register: "curl",
@@ -151,16 +153,16 @@ export default function ApiDocsPage() {
 
         <div className="hidden md:flex gap-8 items-center">
           <Link href="/" className="text-white/70 hover:text-white text-sm font-medium transition-colors">
-            Home
+            {tNav('home')}
           </Link>
           <Link href="/demo" className="text-white/70 hover:text-white text-sm font-medium transition-colors">
-            Demo
+            {tNav('demo')}
           </Link>
           <Link
             href="/api-docs"
             className="text-white text-sm font-medium relative pb-2 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-[linear-gradient(135deg,#38BDF8_0%,#A855F7_100%)] after:rounded-[1px]"
           >
-            API Docs
+            {tNav('apiDocs')}
           </Link>
         </div>
 
@@ -168,7 +170,7 @@ export default function ApiDocsPage() {
           onClick={() => setWaitlistState("form")}
           className="px-5 py-2.5 bg-[linear-gradient(135deg,#38BDF8_0%,#A855F7_100%)] hover:shadow-[0_4px_12px_rgba(56,189,248,0.3)] hover:-translate-y-px text-white text-sm font-semibold rounded-lg transition-all"
         >
-          Join Waitlist
+          {tNav('joinWaitlist')}
         </button>
       </nav>
 

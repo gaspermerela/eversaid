@@ -36,6 +36,20 @@
       "sectionLabel": "Poglejte razliko",
       "title": "Vsaka sprememba vidna. Vsaka beseda preverljiva."
     },
+    "mockTranscript": {
+      "segment1": {
+        "raw": "Torej v bistvu sem ti hotu hotu predstavit am kaj razmišljamo za za prenovo spletne strani.",
+        "cleaned": "Želel sem ti predstaviti, kaj razmišljamo za prenovo spletne strani."
+      },
+      "segment2": {
+        "raw": "Ja to se mi zdi super sem sem res navdušen da da vidim kaj ste pripravili veste.",
+        "cleaned": "To se mi zdi super. Res sem navdušen, da vidim, kaj ste pripravili."
+      },
+      "segment3": {
+        "raw": "Odlično torej se bomo se bomo osredotočili na tri glavna področja mislim domačo stran stran izdelkov in blagajno.",
+        "cleaned": "Osredotočili se bomo na tri glavna področja: domačo stran, stran izdelkov in blagajno."
+      }
+    },
     "insights": {
       "sectionLabel": "Analiza",
       "title": "AI vpogledi",

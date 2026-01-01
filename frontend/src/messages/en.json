@@ -36,6 +36,20 @@
       "sectionLabel": "See the Difference",
       "title": "Every edit visible. Every word verifiable."
     },
+    "mockTranscript": {
+      "segment1": {
+        "raw": "So basically I just wanted to to walk you through um what we're thinking for the the website redesign.",
+        "cleaned": "I wanted to walk you through what we're thinking for the website redesign."
+      },
+      "segment2": {
+        "raw": "Yeah that sounds good I'm I'm really excited to to see what you've come up with you know.",
+        "cleaned": "That sounds good. I'm really excited to see what you've come up with."
+      },
+      "segment3": {
+        "raw": "Perfect so we're gonna we're gonna focus on three main areas I mean the homepage the the product pages and checkout.",
+        "cleaned": "We're going to focus on three main areas: the homepage, the product pages, and checkout."
+      }
+    },
     "insights": {
       "sectionLabel": "Analysis",
       "title": "AI-Powered Insights",

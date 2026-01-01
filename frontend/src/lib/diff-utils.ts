@@ -4,8 +4,9 @@ export interface DiffToken {
 }
 
 // Simple word tokenizer that preserves punctuation
+// Uses Unicode property escapes to handle diacritics (č, š, ž, etc.)
 function tokenize(text: string): string[] {
-  return text.match(/[\w']+|[.,!?;:]+|\s+/g) || []
+  return text.match(/[\p{L}\p{N}']+|[.,!?;:]+|\s+/gu) || []
 }
 
 // Longest Common Subsequence for word arrays

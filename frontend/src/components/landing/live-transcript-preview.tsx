@@ -2,10 +2,43 @@
 
 import type React from "react"
 import { useMemo, useEffect, useRef, useState, useCallback } from "react"
+import { useTranslations } from "next-intl"
 import { TranscriptComparisonLayout } from "@/components/demo/transcript-comparison-layout"
 import { TextMoveToolbar } from "@/components/demo/text-move-toolbar"
 import type { Segment, TextMoveSelection, ActiveSuggestion, SpellcheckError } from "@/components/demo/types"
 
+function useLocalizedSegments(): Segment[] {
+  const t = useTranslations('landing.mockTranscript')
+
+  return useMemo(() => [
+    {
+      id: "seg-1",
+      speaker: 1,
+      time: "0:00 – 0:11",
+      rawText: t('segment1.raw'),
+      cleanedText: t('segment1.cleaned'),
+      originalRawText: t('segment1.raw'),
+    },
+    {
+      id: "seg-2",
+      speaker: 2,
+      time: "0:12 – 0:22",
+      rawText: t('segment2.raw'),
+      cleanedText: t('segment2.cleaned'),
+      originalRawText: t('segment2.raw'),
+    },
+    {
+      id: "seg-3",
+      speaker: 1,
+      time: "0:23 – 0:34",
+      rawText: t('segment3.raw'),
+      cleanedText: t('segment3.cleaned'),
+      originalRawText: t('segment3.raw'),
+    },
+  ], [t])
+}
+
+// Keep for backwards compatibility if needed
 export const landingPageSegments: Segment[] = [
   {
     id: "seg-1",
@@ -176,7 +209,7 @@ export interface LiveTranscriptPreviewProps {
 }
 
 export function LiveTranscriptPreview({
-  segments: segmentsProp = landingPageSegments,
+  segments: segmentsProp,
   activeSegmentId,
   editingSegmentId,
   editedTexts,
@@ -205,10 +238,13 @@ export function LiveTranscriptPreview({
   onMoveClick,
   onCancelTextMove,
 }: LiveTranscriptPreviewProps) {
+  const localizedSegments = useLocalizedSegments()
+  const initialSegments = segmentsProp ?? localizedSegments
+
   const [hasAnimated, setHasAnimated] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const [internalSegments, setInternalSegments] = useState<Segment[]>(segmentsProp)
+  const [internalSegments, setInternalSegments] = useState<Segment[]>(initialSegments)
   const [internalActiveSegmentId, setInternalActiveSegmentId] = useState<string | null>(null)
   const [internalEditingSegmentId, setInternalEditingSegmentId] = useState<string | null>(null)
   const [internalEditedTexts, setInternalEditedTexts] = useState<Map<string, string>>(new Map())
