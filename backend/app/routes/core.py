@@ -274,28 +274,60 @@ async def get_entry_audio(
     session: SessionModel = Depends(get_session),
     core_api: CoreAPIClient = Depends(get_core_api),
 ):
-    """Stream the audio file for an entry."""
-    headers = {"Authorization": f"Bearer {session.access_token}"}
+    """Stream the audio file for an entry.
 
-    # Use streaming to avoid loading entire file in memory
+    Captures headers from Core API response to ensure correct Content-Type
+    and filename regardless of whether audio preprocessing is enabled.
+    """
+    auth_headers = {"Authorization": f"Bearer {session.access_token}"}
+
+    # Start streaming request to Core API
+    # We'll capture headers from the response before streaming body
+    client_stream = core_api.client.stream(
+        "GET",
+        f"/api/v1/entries/{entry_id}/audio",
+        headers=auth_headers,
+    )
+
+    response = await client_stream.__aenter__()
+
+    if response.status_code >= 400:
+        await client_stream.__aexit__(None, None, None)
+        raise CoreAPIError(
+            status_code=response.status_code,
+            detail=f"Failed to fetch audio: {response.status_code}",
+        )
+
+    # Capture headers from Core API response
+    content_type = response.headers.get("content-type", "application/octet-stream")
+    content_length = response.headers.get("content-length")
+    content_disposition = response.headers.get(
+        "content-disposition",
+        f"inline; filename={entry_id}",
+    )
+
+    # Stream the body
     async def stream_audio():
-        async with core_api.client.stream(
-            "GET",
-            f"/api/v1/entries/{entry_id}/audio",
-            headers=headers,
-        ) as response:
-            if response.status_code >= 400:
-                raise CoreAPIError(
-                    status_code=response.status_code,
-                    detail=f"Failed to fetch audio: {response.status_code}",
-                )
+        try:
             async for chunk in response.aiter_bytes():
                 yield chunk
+        finally:
+            await client_stream.__aexit__(None, None, None)
+
+    # Build response headers - pass through from Core API
+    response_headers = {
+        "Content-Disposition": content_disposition,
+        "Accept-Ranges": "bytes",
+    }
+
+    # Add Content-Length if available - helps browser calculate duration
+    if content_length:
+        response_headers["Content-Length"] = content_length
 
     return StreamingResponse(
         stream_audio(),
-        media_type="audio/wav",
-        headers={"Content-Disposition": f"attachment; filename={entry_id}.wav"},
+        media_type=content_type,
+        headers=response_headers,
     )
 
 

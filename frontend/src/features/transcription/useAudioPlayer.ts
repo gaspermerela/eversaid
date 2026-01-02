@@ -18,12 +18,16 @@ export type PlaybackSpeed = (typeof PLAYBACK_SPEEDS)[number]
 export interface UseAudioPlayerOptions {
   /** Segments with parsed start/end times */
   segments: SegmentWithTime[]
+  /** Audio URL - pass this so the hook can detect when audio source changes */
+  audioUrl?: string | null
   /** Initial playback speed (default: 1) */
   initialSpeed?: PlaybackSpeed
   /** Tolerance in ms for segment boundary detection (default: 100ms) */
   boundaryTolerance?: number
   /** Callback when active segment changes */
   onSegmentChange?: (segmentId: string | null, index: number) => void
+  /** Fallback duration from API (used when audio element can't determine duration from streaming) */
+  fallbackDuration?: number
 }
 
 export interface UseAudioPlayerReturn {
@@ -65,9 +69,11 @@ export interface UseAudioPlayerReturn {
    * Includes all necessary event handlers
    */
   audioProps: {
-    ref: React.RefObject<HTMLAudioElement | null>
+    ref: (node: HTMLAudioElement | null) => void
     onTimeUpdate: () => void
     onLoadedMetadata: () => void
+    onLoadedData: () => void
+    onDurationChange: () => void
     onEnded: () => void
     onPlay: () => void
     onPause: () => void
@@ -150,13 +156,15 @@ function findActiveSegmentWithHysteresis(
 export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerReturn {
   const {
     segments,
+    audioUrl,
     initialSpeed = 1,
     boundaryTolerance = BOUNDARY_TOLERANCE_MS,
     onSegmentChange,
+    fallbackDuration = 0,
   } = options
 
-  // Audio element ref
-  const audioRef = useRef<HTMLAudioElement>(null)
+  // Audio element ref - we use a mutable ref that we update via callback ref
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false)
@@ -171,15 +179,22 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
   // Ref to track previous segment index for hysteresis
   const previousSegmentIndexRef = useRef(-1)
 
-  // Debounce ref for timeupdate
-  const lastTimeUpdateRef = useRef(0)
-  const TIME_UPDATE_THROTTLE_MS = 50
+  // Throttle ref for segment updates (not time updates)
+  const lastSegmentUpdateRef = useRef(0)
+  const SEGMENT_UPDATE_THROTTLE_MS = 100
 
   /**
    * Update active segment based on current time
+   * Throttled to prevent excessive segment change callbacks
    */
   const updateActiveSegment = useCallback(
     (time: number) => {
+      const now = Date.now()
+      // Throttle segment updates, but not time updates
+      if (now - lastSegmentUpdateRef.current < SEGMENT_UPDATE_THROTTLE_MS) {
+        return
+      }
+
       const { id, index } = findActiveSegmentWithHysteresis(
         segments,
         time,
@@ -191,6 +206,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
         setActiveSegmentId(id)
         setActiveSegmentIndex(index)
         previousSegmentIndexRef.current = index
+        lastSegmentUpdateRef.current = now
         onSegmentChange?.(id, index)
       }
     },
@@ -199,28 +215,76 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
 
   /**
    * Handle timeupdate event from audio element
-   * Throttled to prevent excessive updates
+   * Updates currentTime on every event for smooth UI updates
    */
   const handleTimeUpdate = useCallback(() => {
     const audio = audioRef.current
     if (!audio) return
 
-    const now = Date.now()
-    if (now - lastTimeUpdateRef.current < TIME_UPDATE_THROTTLE_MS) return
-    lastTimeUpdateRef.current = now
-
+    // Always update current time for smooth progress bar
     setCurrentTime(audio.currentTime)
+
+    // Also try to get duration if we don't have it yet
+    // This is a fallback for when metadata events fire before React attaches handlers
+    if (duration === 0 && isFinite(audio.duration) && audio.duration > 0) {
+      setDuration(audio.duration)
+    }
+
+    // Segment updates are throttled internally
     updateActiveSegment(audio.currentTime)
-  }, [updateActiveSegment])
+  }, [updateActiveSegment, duration])
+
+  /**
+   * Update duration from audio element
+   * Extracted to a separate function so it can be called from multiple places
+   */
+  const updateDuration = useCallback(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    // Only set duration if it's a valid finite positive number
+    if (isFinite(audio.duration) && audio.duration > 0) {
+      setDuration(audio.duration)
+    }
+  }, [])
+
+  /**
+   * Callback ref that detects when audio element mounts/unmounts
+   * Checks for duration immediately in case audio is cached/preloaded
+   */
+  const audioCallbackRef = useCallback((node: HTMLAudioElement | null) => {
+    audioRef.current = node
+    if (node) {
+      // Check if duration is already available (cached audio, preloaded)
+      if (isFinite(node.duration) && node.duration > 0) {
+        setDuration(node.duration)
+      }
+      // Apply current playback speed
+      node.playbackRate = playbackSpeed
+    }
+  }, [playbackSpeed])
 
   /**
    * Handle loadedmetadata event to get duration
    */
   const handleLoadedMetadata = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    setDuration(audio.duration)
-  }, [])
+    updateDuration()
+  }, [updateDuration])
+
+  /**
+   * Handle loadeddata event as fallback for duration
+   * Some browsers fire this before or instead of loadedmetadata
+   */
+  const handleLoadedData = useCallback(() => {
+    updateDuration()
+  }, [updateDuration])
+
+  /**
+   * Handle durationchange event as additional safety net
+   * Fires when duration changes (including when it becomes available)
+   */
+  const handleDurationChange = useCallback(() => {
+    updateDuration()
+  }, [updateDuration])
 
   /**
    * Handle ended event
@@ -277,11 +341,21 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
     const audio = audioRef.current
     if (!audio) return
 
-    const clampedTime = Math.max(0, Math.min(timeSeconds, audio.duration || 0))
+    // Use audio.duration if available, otherwise fallback to API duration
+    const effectiveDur = (isFinite(audio.duration) && audio.duration > 0)
+      ? audio.duration
+      : fallbackDuration
+
+    // Guard against no duration available
+    if (effectiveDur <= 0) return
+
+    const clampedTime = Math.max(0, Math.min(timeSeconds, effectiveDur))
+    if (!isFinite(clampedTime)) return // Extra safety
+
     audio.currentTime = clampedTime
     setCurrentTime(clampedTime)
     updateActiveSegment(clampedTime)
-  }, [updateActiveSegment])
+  }, [updateActiveSegment, fallbackDuration])
 
   /**
    * Seek to the start of a specific segment
@@ -325,11 +399,31 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
     updateActiveSegment(currentTime)
   }, [segments]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * When audio URL changes (switching entries), reset state and reload metadata
+   * This is critical for when the audio element stays mounted but src changes
+   */
+  useEffect(() => {
+    if (!audioUrl) return
+
+    // Reset playback state for new audio
+    setDuration(0)
+    setCurrentTime(0)
+    setIsPlaying(false)
+
+    // Force reload of audio metadata
+    audioRef.current?.load()
+  }, [audioUrl])
+
+  // Use fallbackDuration from API when audio element can't determine duration
+  // This happens when audio is streamed without Content-Length header
+  const effectiveDuration = duration > 0 ? duration : fallbackDuration
+
   return {
     audioRef,
     isPlaying,
     currentTime,
-    duration,
+    duration: effectiveDuration,
     playbackSpeed,
     activeSegmentId,
     activeSegmentIndex,
@@ -340,9 +434,11 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
     seekToSegment,
     setPlaybackSpeed,
     audioProps: {
-      ref: audioRef,
+      ref: audioCallbackRef,
       onTimeUpdate: handleTimeUpdate,
       onLoadedMetadata: handleLoadedMetadata,
+      onLoadedData: handleLoadedData,
+      onDurationChange: handleDurationChange,
       onEnded: handleEnded,
       onPlay: handlePlay,
       onPause: handlePause,

@@ -18,6 +18,7 @@ export interface AudioPlayerProps {
 }
 
 function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return "0:00"
   const mins = Math.floor(seconds / 60)
   const secs = Math.floor(seconds % 60)
   return `${mins}:${secs.toString().padStart(2, "0")}`
@@ -46,6 +47,9 @@ export function AudioPlayer({
   const gradientOffset = (currentTime % 8) * 12.5 // Cycles every 8 seconds, moves 0-100%
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Don't seek if duration is invalid
+    if (!isFinite(duration) || duration <= 0) return
+
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const newTime = (clickX / rect.width) * duration

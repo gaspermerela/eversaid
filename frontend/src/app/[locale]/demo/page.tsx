@@ -105,7 +105,9 @@ export default function DemoPage() {
 
   const audioPlayer = useAudioPlayer({
     segments: transcription.segments,
-    onSegmentChange: (segmentId) => setActiveSegmentId(segmentId)
+    audioUrl,
+    onSegmentChange: (segmentId) => setActiveSegmentId(segmentId),
+    fallbackDuration: transcription.durationSeconds,
   })
 
   // Analysis hook

@@ -150,6 +150,8 @@ export interface UseTranscriptionReturn {
   analysisId: string | null
   /** Current rate limit info */
   rateLimits: RateLimitInfo | null
+  /** Audio duration in seconds (from API, used as fallback for audio player) */
+  durationSeconds: number
 
   // Segment mutations
   /**
@@ -309,6 +311,7 @@ export function useTranscription(
   const [cleanupId, setCleanupId] = useState<string | null>(null)
   const [analysisId, setAnalysisId] = useState<string | null>(null)
   const [rateLimits, setRateLimits] = useState<RateLimitInfo | null>(null)
+  const [durationSeconds, setDurationSeconds] = useState<number>(0)
 
   // Track reverted segments for undo functionality
   const [revertedSegments, setRevertedSegments] = useState<Map<string, string>>(
@@ -754,6 +757,8 @@ export function useTranscription(
         const latestAnalysisId = entryDetails.latest_analysis?.id ?? null
         setAnalysisId(latestAnalysisId)
         console.log("[loadEntry] Latest analysis ID:", latestAnalysisId)
+        // Set duration from API response (used as fallback when audio element can't determine duration)
+        setDurationSeconds(entryDetails.duration_seconds || 0)
         setStatus("complete")
         console.log("[loadEntry] Entry loaded successfully")
       } catch (err) {
@@ -785,6 +790,7 @@ export function useTranscription(
     setCleanupId(null)
     setAnalysisId(null)
     setRateLimits(null)
+    setDurationSeconds(0)
     setRevertedSegments(new Map())
   }, [initialSegments, mockMode])
 
@@ -814,6 +820,7 @@ export function useTranscription(
     cleanupId,
     analysisId,
     rateLimits,
+    durationSeconds,
     updateSegmentCleanedText,
     revertSegmentToRaw,
     undoRevert,
