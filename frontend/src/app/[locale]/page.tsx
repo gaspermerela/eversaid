@@ -11,6 +11,7 @@ import { LanguageSwitcher } from "@/components/ui/language-switcher"
 export default function HomePage() {
   const t = useTranslations('landing')
   const tNav = useTranslations('navigation')
+  const tRoot = useTranslations()
 
   const [waitlistState, setWaitlistState] = useState<"hidden" | "toast" | "form" | "success">("hidden")
   const [waitlistType, setWaitlistType] = useState<"extended_usage" | "api_access">("extended_usage")
@@ -489,6 +490,7 @@ export default function HomePage() {
         onClose={handleWaitlistClose}
         onCopyCode={handleWaitlistCopyCode}
         onCopyLink={handleWaitlistCopyLink}
+        t={tRoot}
       />
     </main>
   )

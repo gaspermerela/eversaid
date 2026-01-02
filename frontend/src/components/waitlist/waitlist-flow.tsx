@@ -21,6 +21,7 @@ export interface WaitlistFlowProps {
   onOpenForm?: () => void
   onCopyCode?: () => void
   onCopyLink?: () => void
+  t: (key: string) => string
 }
 
 export function WaitlistFlow({
@@ -42,6 +43,7 @@ export function WaitlistFlow({
   onOpenForm,
   onCopyCode,
   onCopyLink,
+  t,
 }: WaitlistFlowProps) {
   const referralLink = `https://eversaid.com?ref=${referralCode}`
 
@@ -62,10 +64,10 @@ export function WaitlistFlow({
         </div>
         <div className="flex-1 min-w-0 text-center md:text-left">
           <div className="text-[15px] font-bold text-white mb-0.5">
-            {isExtendedUsage ? "Rate limit reached" : "API access required"}
+            {isExtendedUsage ? t("waitlist.toast.rateLimitTitle") : t("waitlist.toast.apiAccessTitle")}
           </div>
           <div className="text-[13px] text-white/70">
-            {isExtendedUsage ? "Join the waitlist for unlimited transcriptions" : "Join the waitlist to access our API"}
+            {isExtendedUsage ? t("waitlist.toast.rateLimitSubtitle") : t("waitlist.toast.apiAccessSubtitle")}
           </div>
         </div>
         <div className="flex gap-2 flex-shrink-0 w-full md:w-auto">
@@ -73,13 +75,13 @@ export function WaitlistFlow({
             onClick={onClose}
             className="flex-1 md:flex-none px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white/80 hover:text-white rounded-[10px] text-[13px] font-semibold transition-all"
           >
-            Later
+            {t("waitlist.toast.later")}
           </button>
           <button
             onClick={() => {}}
             className="flex-1 md:flex-none px-4 py-2.5 bg-[linear-gradient(135deg,#38BDF8_0%,#A855F7_100%)] hover:shadow-[0_4px_12px_rgba(56,189,248,0.3)] hover:-translate-y-px text-white rounded-[10px] text-[13px] font-semibold transition-all"
           >
-            Join Waitlist
+            {t("waitlist.toast.joinWaitlist")}
           </button>
         </div>
       </div>
@@ -113,12 +115,12 @@ export function WaitlistFlow({
               <UserPlus className="w-8 h-8 stroke-[#38BDF8]" strokeWidth={2} />
             </div>
             <h2 className="text-2xl font-extrabold text-white mb-2">
-              {isApiAccess ? "Join API Waitlist" : "Join the Waitlist"}
+              {isApiAccess ? t("waitlist.modal.titleApi") : t("waitlist.modal.titleExtended")}
             </h2>
             <p className="text-[15px] text-white/70 leading-relaxed">
               {isApiAccess
-                ? "Get early access to integrate eversaid into your application"
-                : "Get full encryption, higher limits, and exclusive early access"}
+                ? t("waitlist.modal.subtitleApi")
+                : t("waitlist.modal.subtitleExtended")}
             </p>
           </div>
 
@@ -137,7 +139,7 @@ export function WaitlistFlow({
                     htmlFor="waitlist-email"
                     className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] mb-2"
                   >
-                    Email Address
+                    {t("waitlist.modal.emailLabel")}
                     <span className="text-[#DC2626]" aria-label="required">
                       *
                     </span>
@@ -149,7 +151,7 @@ export function WaitlistFlow({
                     aria-required="true"
                     value={email}
                     onChange={(e) => onEmailChange(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={t("waitlist.modal.emailPlaceholder")}
                     className="w-full px-4 py-3 border-2 border-[#E2E8F0] rounded-xl text-[15px] bg-[#F8FAFC] transition-all focus:outline-none focus:border-[#38BDF8] focus:bg-white focus:shadow-[0_0_0_4px_rgba(56,189,248,0.1)] placeholder:text-[#94A3B8]"
                   />
                 </div>
@@ -160,7 +162,7 @@ export function WaitlistFlow({
                     htmlFor="waitlist-usecase"
                     className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] mb-2"
                   >
-                    {isApiAccess ? "What will you build?" : "How will you use eversaid?"}
+                    {isApiAccess ? t("waitlist.modal.useCaseLabelApi") : t("waitlist.modal.useCaseLabelExtended")}
                     <span className="text-[#DC2626]" aria-label="required">
                       *
                     </span>
@@ -173,13 +175,13 @@ export function WaitlistFlow({
                     onChange={(e) => onUseCaseChange?.(e.target.value)}
                     placeholder={
                       isApiAccess
-                        ? "e.g., Voice journal app, meeting notes automation"
-                        : "e.g., Therapy notes, interview transcription"
+                        ? t("waitlist.modal.useCasePlaceholderApi")
+                        : t("waitlist.modal.useCasePlaceholderExtended")
                     }
                     className="w-full px-4 py-3 border-2 border-[#E2E8F0] rounded-xl text-[15px] bg-[#F8FAFC] min-h-[80px] resize-vertical transition-all focus:outline-none focus:border-[#38BDF8] focus:bg-white focus:shadow-[0_0_0_4px_rgba(56,189,248,0.1)] placeholder:text-[#94A3B8]"
                   />
                   <div className="mt-1.5 text-[12px] text-[#64748B]">
-                    {isApiAccess ? "Help us understand your integration needs" : "This helps us prioritize features"}
+                    {isApiAccess ? t("waitlist.modal.useCaseHelpApi") : t("waitlist.modal.useCaseHelpExtended")}
                   </div>
                 </div>
 
@@ -190,8 +192,8 @@ export function WaitlistFlow({
                       htmlFor="waitlist-volume"
                       className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] mb-2"
                     >
-                      Expected monthly volume
-                      <span className="text-[#94A3B8] font-normal">(optional)</span>
+                      {t("waitlist.modal.volumeLabel")}
+                      <span className="text-[#94A3B8] font-normal">{t("waitlist.modal.volumeOptional")}</span>
                     </label>
                     <select
                       id="waitlist-volume"
@@ -199,11 +201,11 @@ export function WaitlistFlow({
                       onChange={(e) => onVolumeChange?.(e.target.value)}
                       className="w-full px-4 py-3 border-2 border-[#E2E8F0] rounded-xl text-[15px] bg-[#F8FAFC] transition-all focus:outline-none focus:border-[#38BDF8] focus:bg-white focus:shadow-[0_0_0_4px_rgba(56,189,248,0.1)]"
                     >
-                      <option value="">Select volume</option>
-                      <option value="0-100">0-100 hours</option>
-                      <option value="100-500">100-500 hours</option>
-                      <option value="500-2000">500-2,000 hours</option>
-                      <option value="2000+">2,000+ hours</option>
+                      <option value="">{t("waitlist.modal.volumePlaceholder")}</option>
+                      <option value="0-100">{t("waitlist.modal.volumeOptions.0-100")}</option>
+                      <option value="100-500">{t("waitlist.modal.volumeOptions.100-500")}</option>
+                      <option value="500-2000">{t("waitlist.modal.volumeOptions.500-2000")}</option>
+                      <option value="2000+">{t("waitlist.modal.volumeOptions.2000+")}</option>
                     </select>
                   </div>
                 )}
@@ -214,15 +216,15 @@ export function WaitlistFlow({
                     htmlFor="waitlist-source"
                     className="flex items-center gap-1.5 text-[13px] font-semibold text-[#374151] mb-2"
                   >
-                    How did you hear about us?
-                    <span className="text-[#94A3B8] font-normal">(optional)</span>
+                    {t("waitlist.modal.sourceLabel")}
+                    <span className="text-[#94A3B8] font-normal">{t("waitlist.modal.volumeOptional")}</span>
                   </label>
                   <input
                     type="text"
                     id="waitlist-source"
                     value={source}
                     onChange={(e) => onSourceChange?.(e.target.value)}
-                    placeholder="e.g., Twitter, friend, search"
+                    placeholder={t("waitlist.modal.sourcePlaceholder")}
                     className="w-full px-4 py-3 border-2 border-[#E2E8F0] rounded-xl text-[15px] bg-[#F8FAFC] transition-all focus:outline-none focus:border-[#38BDF8] focus:bg-white focus:shadow-[0_0_0_4px_rgba(56,189,248,0.1)] placeholder:text-[#94A3B8]"
                   />
                 </div>
@@ -233,14 +235,14 @@ export function WaitlistFlow({
                   disabled={isSubmitting}
                   className="w-full py-3.5 bg-[linear-gradient(135deg,#38BDF8_0%,#A855F7_100%)] hover:shadow-[0_8px_24px_rgba(56,189,248,0.4)] hover:-translate-y-0.5 text-white text-base font-bold rounded-xl transition-all shadow-[0_4px_16px_rgba(56,189,248,0.3)] disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
                 >
-                  {isSubmitting ? "Joining..." : "Join Waitlist"}
+                  {isSubmitting ? t("waitlist.modal.submitting") : t("waitlist.modal.submit")}
                 </button>
 
                 {/* Privacy Footer */}
                 <div className="text-center mt-4 text-[12px] text-[#94A3B8]">
-                  By submitting, you agree to our{" "}
+                  {t("waitlist.modal.privacyNote")}{" "}
                   <a href="#" className="text-[#64748B] underline hover:text-[#0F172A]">
-                    Privacy Policy
+                    {t("waitlist.modal.privacyLink")}
                   </a>
                 </div>
               </form>
@@ -256,9 +258,9 @@ export function WaitlistFlow({
               </div>
 
               {/* Success Message */}
-              <h3 className="text-[22px] font-extrabold text-[#0F172A] text-center mb-2">You&apos;re on the list!</h3>
+              <h3 className="text-[22px] font-extrabold text-[#0F172A] text-center mb-2">{t("waitlist.success.title")}</h3>
               <p className="text-[15px] text-[#64748B] text-center mb-7 leading-relaxed">
-                We&apos;ll email you when your spot is ready. Move up by referring friends.
+                {t("waitlist.success.subtitle")}
               </p>
 
               {/* Referral Section */}
@@ -268,13 +270,13 @@ export function WaitlistFlow({
                     <Upload className="w-[18px] h-[18px] stroke-white" strokeWidth={2} />
                   </div>
                   <div>
-                    <div className="text-[15px] font-bold text-[#0F172A]">Earn Free Credits</div>
-                    <div className="text-[13px] text-[#64748B]">Share your referral link</div>
+                    <div className="text-[15px] font-bold text-[#0F172A]">{t("waitlist.success.earnCredits")}</div>
+                    <div className="text-[13px] text-[#64748B]">{t("waitlist.success.shareLink")}</div>
                   </div>
                 </div>
 
                 <p className="text-[13px] text-[#64748B] mb-4 leading-relaxed">
-                  For every friend who signs up, you both move up the waitlist and get free transcription hours.
+                  {t("waitlist.success.referralExplain")}
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -291,13 +293,13 @@ export function WaitlistFlow({
                     className="px-4 py-2.5 bg-[#0F172A] hover:bg-[#1E293B] text-white rounded-[10px] text-[13px] font-semibold flex items-center justify-center gap-1.5 transition-all whitespace-nowrap"
                   >
                     <Copy className="w-4 h-4" />
-                    {copied ? "Copied!" : "Copy Link"}
+                    {copied ? t("waitlist.success.copied") : t("waitlist.success.copyLink")}
                   </button>
                 </div>
 
                 <div className="mt-4 pt-4 border-t border-[rgba(56,189,248,0.2)] flex items-start gap-2 text-[12px] text-[#64748B]">
                   <Info className="w-4 h-4 stroke-[#A855F7] flex-shrink-0 mt-0.5" />
-                  <span>Credits are awarded when referrals complete signup. Track your progress via email.</span>
+                  <span>{t("waitlist.success.creditsNote")}</span>
                 </div>
               </div>
 
@@ -306,7 +308,7 @@ export function WaitlistFlow({
                 onClick={onClose}
                 className="w-full mt-5 py-3.5 bg-[#F1F5F9] hover:bg-[#E2E8F0] text-[#0F172A] text-[15px] font-semibold rounded-xl transition-all"
               >
-                Done
+                {t("waitlist.success.done")}
               </button>
             </div>
           )}

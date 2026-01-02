@@ -12,6 +12,7 @@ import { AudioPlayer } from "@/components/demo/audio-player"
 import { UploadZone } from "@/components/demo/upload-zone"
 import type { Segment, SpellcheckError, TextMoveSelection } from "@/components/demo/types"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
+import { useTranslations } from "next-intl"
 import { OfflineBanner } from "@/components/ui/offline-banner"
 import { ErrorDisplay } from "@/components/demo/error-display"
 import { RateLimitModal } from "@/components/demo/rate-limit-modal"
@@ -61,6 +62,9 @@ export default function DemoPage() {
 
   // Transcription hook
   const transcription = useTranscription({ mockMode: isMockMode })
+
+  // Translation hook
+  const t = useTranslations()
 
   // Feedback hook
   const feedbackHook = useFeedback({
@@ -715,6 +719,7 @@ export default function DemoPage() {
         onSubmit={handleWaitlistSubmit}
         onClose={handleWaitlistClose}
         onOpenForm={() => setWaitlistState("form")}
+        t={t}
       />
 
       <RateLimitModal

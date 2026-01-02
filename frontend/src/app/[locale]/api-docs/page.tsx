@@ -9,6 +9,7 @@ import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 
 export default function ApiDocsPage() {
   const tNav = useTranslations('navigation')
+  const tRoot = useTranslations()
   const [activeSection, setActiveSection] = useState("quickstart")
   const [activeTab, setActiveTab] = useState<Record<string, string>>({
     register: "curl",
@@ -98,6 +99,7 @@ export default function ApiDocsPage() {
         onClose={() => setWaitlistState("hidden")}
         onEmailChange={setWaitlistEmail}
         onSubmit={handleWaitlistSubmit}
+        t={tRoot}
       />
 
       {/* Navigation */}
