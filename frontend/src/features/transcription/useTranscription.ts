@@ -311,7 +311,9 @@ export function useTranscription(
   const [entryId, setEntryId] = useState<string | null>(
     segments.length > 0 ? "mock-entry-1" : null
   )
-  const [cleanupId, setCleanupId] = useState<string | null>(null)
+  const [cleanupId, setCleanupId] = useState<string | null>(
+    mockMode ? "mock-cleanup-1" : null
+  )
   const [analysisId, setAnalysisId] = useState<string | null>(null)
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([])
   const [rateLimits, setRateLimits] = useState<RateLimitInfo | null>(null)
@@ -794,7 +796,7 @@ export function useTranscription(
     setError(null)
     setUploadProgress(0)
     setEntryId(initialSegments?.length || mockMode ? "mock-entry-1" : null)
-    setCleanupId(null)
+    setCleanupId(initialSegments?.length || mockMode ? "mock-cleanup-1" : null)
     setAnalysisId(null)
     setAnalyses([])
     setRateLimits(null)
