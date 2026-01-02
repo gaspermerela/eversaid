@@ -215,7 +215,10 @@
       "edited": "Edited",
       "clickToMoveHere": "Click to move here",
       "doubleClickToEdit": "Double-click to edit",
-      "suggestions": "Suggestions"
+      "suggestions": "Suggestions",
+      "exitFullscreen": "Exit fullscreen",
+      "expandEditor": "Expand editor",
+      "clickToExpand": "Click to expand"
     },
     "speakers": {
       "label": "Number of speakers",

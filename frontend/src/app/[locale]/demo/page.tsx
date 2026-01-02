@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useRef, useEffect, useMemo } from "react"
+import { useState, useCallback, useRef, useEffect, useMemo, Suspense } from "react"
 import { DemoNavigation } from "@/components/demo/demo-navigation"
 import { AnalysisSection } from "@/components/demo/analysis-section"
 import { EntryHistoryCard } from "@/components/demo/entry-history-card"
@@ -13,6 +13,9 @@ import { UploadZone } from "@/components/demo/upload-zone"
 import type { Segment, SpellcheckError, TextMoveSelection } from "@/components/demo/types"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 import { useTranslations } from "next-intl"
+import { useSearchParams } from "next/navigation"
+import { useRouter } from "@/i18n/routing"
+import { motion, AnimatePresence } from "@/components/motion"
 import { OfflineBanner } from "@/components/ui/offline-banner"
 import { ErrorDisplay } from "@/components/demo/error-display"
 import { RateLimitModal } from "@/components/demo/rate-limit-modal"
@@ -54,7 +57,7 @@ const checkSpelling = (text: string): SpellcheckError[] => {
   return mockErrors
 }
 
-export default function DemoPage() {
+function DemoPageContent() {
    // TODO: Replace ?mock URL param with MSW (Mock Service Worker) for cleaner E2E testing.
   // MSW intercepts network requests at the test level, keeping production code unaware of testing.
   // Current approach: ?mock param enables mock mode for Playwright E2E tests to bypass upload flow.
@@ -67,6 +70,10 @@ export default function DemoPage() {
   // Translation hook
   const t = useTranslations()
 
+  // Navigation hooks for URL query params (browser back button support)
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   // Feedback hook
   const feedbackHook = useFeedback({
     entryId: transcription.entryId ?? '',
@@ -75,6 +82,7 @@ export default function DemoPage() {
 
   // UI State
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null)
+  const [isEditorExpanded, setIsEditorExpanded] = useState(false)
 
   // Upload State
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -180,6 +188,36 @@ export default function DemoPage() {
       isSyncingScrollRef.current = false
     })
   }
+
+  // Load entry from URL query param on mount (for browser back button support)
+  useEffect(() => {
+    const entryId = searchParams.get('entry')
+    if (entryId && !transcription.entryId && transcription.status === 'idle') {
+      transcription.loadEntry(entryId)
+    }
+  }, [searchParams, transcription.entryId, transcription.status, transcription.loadEntry])
+
+  // Update URL when entry is loaded (creates browser history entry)
+  useEffect(() => {
+    if (transcription.entryId && transcription.segments.length > 0) {
+      const currentEntry = searchParams.get('entry')
+      if (currentEntry !== transcription.entryId) {
+        router.push(`/demo?entry=${transcription.entryId}`)
+      }
+    }
+  }, [transcription.entryId, transcription.segments.length, searchParams, router])
+
+  // ESC key handler to collapse editor
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isEditorExpanded && transcription.segments.length > 0) {
+        setIsEditorExpanded(false)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [isEditorExpanded, transcription.segments.length])
 
   // Sync segment heights
   useEffect(() => {
@@ -621,11 +659,17 @@ export default function DemoPage() {
         ) : (
           /* Transcript Mode */
           <>
-            <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden mb-8">
+            <div className={`bg-card shadow-lg border border-border overflow-hidden transition-all duration-300 ${
+              isEditorExpanded
+                ? "fixed inset-x-0 top-16 bottom-0 z-40 rounded-none border-x-0"
+                : "rounded-xl mb-12"
+            }`}>
               {audioUrl && (
                 <audio src={audioUrl} {...audioPlayer.audioProps} preload="metadata" className="hidden" />
               )}
-              <div className="bg-gradient-to-b from-muted/30 to-transparent border-b border-border/50 rounded-t-lg">
+              <div className={`bg-gradient-to-b from-muted/30 to-transparent border-b border-border/50 ${
+                isEditorExpanded ? "rounded-none" : "rounded-t-lg"
+              }`}>
                 <AudioPlayer
                   isPlaying={audioPlayer.isPlaying}
                   currentTime={audioPlayer.currentTime}
@@ -670,46 +714,59 @@ export default function DemoPage() {
                 onCleanedMoveTargetClick={handleCleanedMoveTargetClick}
                 activeWordIndex={wordHighlight.activeWordIndex}
                 isPlaying={audioPlayer.isPlaying}
+                isExpanded={isEditorExpanded}
+                onExpandToggle={() => setIsEditorExpanded(true)}
+                onClose={() => setIsEditorExpanded(false)}
               />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <AnalysisSection
-                  analysisType={analysisType}
-                  analysisData={analysisHook.data}
-                  showAnalysisMenu={showAnalysisMenu}
-                  isLoading={analysisHook.isLoading}
-                  error={analysisHook.error}
-                  profiles={analysisHook.profiles}
-                  currentProfileId={analysisHook.currentProfileId}
-                  currentProfileLabel={analysisHook.currentProfileLabel}
-                  currentProfileIntent={analysisHook.currentProfileIntent}
-                  onAnalysisTypeChange={setAnalysisType}
-                  onToggleAnalysisMenu={handleToggleAnalysisMenu}
-                  onSelectProfile={handleSelectProfile}
-                />
-              </div>
+            {/* Analysis and Feedback - animated visibility */}
+            <AnimatePresence mode="wait">
+              {!isEditorExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{
+                    type: "spring",
+                    damping: 25,
+                    stiffness: 200,
+                    delay: 0.1
+                  }}
+                  className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+                >
+                  <div className="lg:col-span-2">
+                    <AnalysisSection
+                      analysisType={analysisType}
+                      analysisData={analysisHook.data}
+                      showAnalysisMenu={showAnalysisMenu}
+                      isLoading={analysisHook.isLoading}
+                      error={analysisHook.error}
+                      profiles={analysisHook.profiles}
+                      currentProfileId={analysisHook.currentProfileId}
+                      currentProfileLabel={analysisHook.currentProfileLabel}
+                      currentProfileIntent={analysisHook.currentProfileIntent}
+                      onAnalysisTypeChange={setAnalysisType}
+                      onToggleAnalysisMenu={handleToggleAnalysisMenu}
+                      onSelectProfile={handleSelectProfile}
+                    />
+                  </div>
 
-              <div className="space-y-6">
-                <EntryHistoryCard
-                  entries={entriesHook.entries}
-                  activeId={transcription.entryId}
-                  onSelect={handleEntrySelect}
-                  isEmpty={entriesHook.entries.length === 0 && !entriesHook.isLoading}
-                />
-                <FeedbackCard
-                  rating={feedbackHook.rating}
-                  feedback={feedbackHook.feedbackText}
-                  onRatingChange={feedbackHook.setRating}
-                  onFeedbackChange={feedbackHook.setFeedbackText}
-                  onSubmit={feedbackHook.submit}
-                  isSubmitting={feedbackHook.isSubmitting}
-                  isSubmitted={feedbackHook.isSubmitted}
-                  disabled={!transcription.entryId}
-                />
-              </div>
-            </div>
+                  <div>
+                    <FeedbackCard
+                      rating={feedbackHook.rating}
+                      feedback={feedbackHook.feedbackText}
+                      onRatingChange={feedbackHook.setRating}
+                      onFeedbackChange={feedbackHook.setFeedbackText}
+                      onSubmit={feedbackHook.submit}
+                      isSubmitting={feedbackHook.isSubmitting}
+                      isSubmitted={feedbackHook.isSubmitted}
+                      disabled={!transcription.entryId}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </>
         )}
       </main>
@@ -742,5 +799,14 @@ export default function DemoPage() {
         onJoinWaitlist={handleRateLimitJoinWaitlist}
       />
     </div>
+  )
+}
+
+// Wrap in Suspense for useSearchParams (required by Next.js)
+export default function DemoPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#FAFAFA]" />}>
+      <DemoPageContent />
+    </Suspense>
   )
 }

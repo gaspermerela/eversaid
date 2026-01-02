@@ -215,7 +215,10 @@
       "edited": "Urejeno",
       "clickToMoveHere": "Kliknite za premik sem",
       "doubleClickToEdit": "Dvokliknite za urejanje",
-      "suggestions": "Predlogi"
+      "suggestions": "Predlogi",
+      "exitFullscreen": "Zapri celozaslonski način",
+      "expandEditor": "Razširi urejevalnik",
+      "clickToExpand": "Kliknite za razširitev"
     },
     "speakers": {
       "label": "Število govorcev",

@@ -160,11 +160,11 @@ export function EditableSegmentRow({
     <>
       <div
         data-segment-id={id}
-        className={`p-4 mb-3 rounded-xl border-l-4 transition-all cursor-pointer relative ${
+        className={`p-3 mb-2 rounded-xl border-l-4 transition-all cursor-pointer relative ${
           isActive
-            ? "bg-blue-50/50 border-l-blue-500 shadow-[0_0_0_2px_rgba(59,130,246,0.2),0_4px_12px_rgba(0,0,0,0.05)]"
+            ? "bg-blue-100 shadow-[0_0_0_2px_rgba(59,130,246,0.25),0_4px_12px_rgba(0,0,0,0.08)]"
             : "bg-secondary"
-        } ${showSpeakerLabels && !isActive ? (speaker === 1 ? "border-primary" : "border-purple-500") : !isActive ? "border-border" : ""}`}
+        } ${showSpeakerLabels ? (speaker === 1 ? "border-primary" : "border-purple-500") : "border-border"}`}
         onClick={handleClick}
         onMouseUp={handleMouseUp}
       >
@@ -172,7 +172,7 @@ export function EditableSegmentRow({
           <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-amber-500 rounded-full border-2 border-background shadow-sm" />
         )}
 
-        <div className="flex justify-between items-center mb-2.5">
+        <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-2">
             {showSpeakerLabels && (
               <span className={`text-xs font-bold ${speaker === 1 ? "text-blue-600" : "text-purple-600"}`}>

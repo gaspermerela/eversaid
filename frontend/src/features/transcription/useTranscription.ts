@@ -237,6 +237,15 @@ function formatTime(seconds: number): string {
 }
 
 /**
+ * Parse speaker number from string like "Speaker 1" → 1
+ */
+function parseSpeakerNumber(speaker?: string): number {
+  if (!speaker) return 0
+  const match = speaker.match(/(\d+)/)
+  return match ? parseInt(match[1], 10) : 0
+}
+
+/**
  * Transform API segments to frontend Segment format
  *
  * @param rawSegments - Array of segments from API
@@ -275,7 +284,7 @@ function transformApiSegments(
 
     return {
       id: rawSeg.id || `seg-${index}`,
-      speaker: rawSeg.speaker_id ?? 0,
+      speaker: rawSeg.speaker_id ?? parseSpeakerNumber(rawSeg.speaker),
       time: timeStr,
       rawText: rawSeg.text,
       cleanedText: cleanedSeg?.text || rawSeg.text,

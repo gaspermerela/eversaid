@@ -1,6 +1,6 @@
 "use client"
-import type { Segment } from "@/components/demo/types" // Assuming Segment is imported from a types file
-import { Eye, EyeOff, Copy } from "lucide-react" // Assuming these icons are imported from lucide-react
+import type { Segment } from "@/components/demo/types"
+import { Eye, EyeOff, Copy, X } from "lucide-react"
 
 export interface TranscriptHeaderProps {
   title: string
@@ -10,6 +10,8 @@ export interface TranscriptHeaderProps {
   showDiff?: boolean
   onToggleDiff?: () => void
   showCopyButton?: boolean
+  showCloseButton?: boolean
+  onClose?: () => void
 }
 
 export function TranscriptHeader({
@@ -20,6 +22,8 @@ export function TranscriptHeader({
   showDiff = false,
   onToggleDiff,
   showCopyButton = true,
+  showCloseButton = false,
+  onClose,
 }: TranscriptHeaderProps) {
   const handleCopy = () => {
     const text = segments.map((s) => s[textKey]).join("\n\n")
@@ -50,6 +54,15 @@ export function TranscriptHeader({
           >
             <Copy className="w-3.5 h-3.5" />
             Copy
+          </button>
+        )}
+        {showCloseButton && onClose && (
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 p-1.5 bg-muted/80 hover:bg-red-100 hover:text-red-600 rounded-md text-muted-foreground transition-all"
+            aria-label="Exit fullscreen"
+          >
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>

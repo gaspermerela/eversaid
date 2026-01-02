@@ -4,6 +4,8 @@ import type React from "react"
 
 import { useRef, useEffect } from "react"
 import { useTranslations } from "next-intl"
+import { motion, AnimatePresence, useReducedMotion } from "@/components/motion"
+import { Maximize2 } from "lucide-react"
 import { RawSegmentList } from "./raw-segment-list"
 import { EditableSegmentList } from "./editable-segment-list"
 import { TranscriptHeader } from "./transcript-header"
@@ -26,6 +28,12 @@ interface TranscriptComparisonLayoutProps {
   activeWordIndex?: number
   /** Whether audio is currently playing */
   isPlaying?: boolean
+  /** Whether the editor is in expanded (fullscreen) mode */
+  isExpanded?: boolean
+  /** Callback when user clicks to expand from collapsed state */
+  onExpandToggle?: () => void
+  /** Callback when user clicks X or presses ESC to collapse */
+  onClose?: () => void
   onSegmentClick: (segmentId: string) => void
   onRevert: (segmentId: string) => void
   onUndoRevert: (segmentId: string) => void
@@ -62,6 +70,9 @@ export function TranscriptComparisonLayout({
   editingCount,
   activeWordIndex = -1,
   isPlaying = false,
+  isExpanded = true,
+  onExpandToggle,
+  onClose,
   onSegmentClick,
   onRevert,
   onUndoRevert,
@@ -86,6 +97,12 @@ export function TranscriptComparisonLayout({
   const rawScrollRef = useRef<HTMLDivElement>(null)
   const cleanedScrollRef = useRef<HTMLDivElement>(null)
   const isSyncingScrollRef = useRef(false)
+  const shouldReduceMotion = useReducedMotion()
+
+  // Animation settings respecting reduced motion preference
+  const springTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { type: "spring" as const, damping: 30, stiffness: 300 }
 
   const handleRawScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (isSyncingScrollRef.current) return
@@ -147,10 +164,22 @@ export function TranscriptComparisonLayout({
     syncHeights()
     window.addEventListener("resize", syncHeights)
     return () => window.removeEventListener("resize", syncHeights)
-  }, [segments, showDiff])
+  }, [segments, showDiff, isExpanded])
+
+  // Calculate height based on expanded state
+  // When expanded: fills remaining space in fixed container (after audio player ~100px + header ~50px)
+  // When collapsed: fixed 400px height
+  const getEditorHeight = () => {
+    if (variant !== "demo") return undefined
+    return isExpanded ? "calc(100vh - 230px)" : "400px"
+  }
 
   return (
-    <div>
+    <motion.div
+      layout
+      className="relative"
+      transition={{ layout: springTransition }}
+    >
       <div className="grid grid-cols-2 border-b border-border">
         <TranscriptHeader
           title={t('rawTitle')}
@@ -166,10 +195,17 @@ export function TranscriptComparisonLayout({
           showDiff={showDiff}
           onToggleDiff={onToggleDiff}
           showCopyButton={showCopyButton}
+          showCloseButton={isExpanded && variant === "demo"}
+          onClose={onClose}
         />
       </div>
 
-      <div className={`grid grid-cols-2 ${variant === "demo" ? "h-[600px]" : ""}`}>
+      <motion.div
+        layout
+        className="grid grid-cols-2 overflow-hidden"
+        style={{ height: getEditorHeight() }}
+        transition={{ height: springTransition }}
+      >
         <RawSegmentList
           ref={rawScrollRef}
           segments={segments}
@@ -216,7 +252,36 @@ export function TranscriptComparisonLayout({
           onScroll={handleCleanedScroll}
           showRevertButton={showRevertButton}
         />
-      </div>
-    </div>
+      </motion.div>
+
+      {/* Expand overlay - only shown when collapsed */}
+      <AnimatePresence>
+        {!isExpanded && onExpandToggle && variant === "demo" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2, delay: 0.1 }}
+            onClick={onExpandToggle}
+            className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/80
+                       cursor-pointer z-10 flex items-end justify-center pb-6"
+            role="button"
+            aria-label={t('expandEditor')}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 10, opacity: 0 }}
+              transition={{ delay: 0.15 }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground
+                         rounded-full text-sm font-medium shadow-lg"
+            >
+              <Maximize2 className="w-4 h-4" />
+              <span>{t('clickToExpand')}</span>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   )
 }
