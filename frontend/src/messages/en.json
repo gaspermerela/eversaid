@@ -241,6 +241,20 @@
         "summary": "Conversation Summary",
         "actionItems": "Action Items",
         "sentiment": "Sentiment Analysis"
+      },
+      "profiles": {
+        "generic-summary": {
+          "label": "Conversation Summary",
+          "intent": "summarization"
+        },
+        "action-items": {
+          "label": "Action Items & Decisions",
+          "intent": "task extraction"
+        },
+        "reflection": {
+          "label": "Reflection & Insights",
+          "intent": "self-discovery"
+        }
       }
     },
     "history": {

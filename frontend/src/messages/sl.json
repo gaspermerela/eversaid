@@ -241,6 +241,20 @@
         "summary": "Povzetek pogovora",
         "actionItems": "Naloge",
         "sentiment": "Analiza razpoloženja"
+      },
+      "profiles": {
+        "generic-summary": {
+          "label": "Povzetek pogovora",
+          "intent": "povzemanje"
+        },
+        "action-items": {
+          "label": "Naloge in odločitve",
+          "intent": "ekstrakcija nalog"
+        },
+        "reflection": {
+          "label": "Razmislek in uvidi",
+          "intent": "samoodkrivanje"
+        }
       }
     },
     "history": {

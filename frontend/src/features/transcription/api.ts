@@ -343,11 +343,15 @@ export async function revertUserEdit(
  */
 export async function getAnalysisProfiles(): Promise<{
   data: AnalysisProfile[]
+  defaultProfileId: string
   rateLimitInfo: RateLimitInfo | null
 }> {
   const result = await request<{ profiles: AnalysisProfile[] }>('/api/analysis-profiles')
+  const profiles = result.data.profiles
+  const defaultProfileId = profiles.find(p => p.is_default)?.id ?? 'generic-summary'
   return {
-    data: result.data.profiles,
+    data: profiles,
+    defaultProfileId,
     rateLimitInfo: result.rateLimitInfo,
   }
 }

@@ -26,6 +26,8 @@ export interface AnalysisSectionProps {
   currentProfileId?: string | null
   /** Label of currently selected profile (for dropdown button text) */
   currentProfileLabel?: string | null
+  /** Intent of currently selected profile (for subtitle display) */
+  currentProfileIntent?: string | null
   onAnalysisTypeChange: (type: "summary" | "action-items" | "sentiment") => void
   onToggleAnalysisMenu: () => void
   /** Select a profile - checks cache first, only triggers LLM if needed */
@@ -43,6 +45,7 @@ export function AnalysisSection({
   profiles = [],
   currentProfileId,
   currentProfileLabel,
+  currentProfileIntent,
   onAnalysisTypeChange,
   onToggleAnalysisMenu,
   onSelectProfile,
@@ -135,70 +138,67 @@ export function AnalysisSection({
 
   return (
     <div className="bg-[linear-gradient(135deg,rgba(var(--color-primary),0.05)_0%,rgba(168,85,247,0.05)_100%)] border border-[rgba(var(--color-primary),0.2)] rounded-[20px] p-7">
-      <div className="flex justify-between items-center mb-5">
-        <div className="flex items-center gap-3">
-          <div className="text-[11px] font-bold text-primary uppercase tracking-[1px]">{t('label')}</div>
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-            <Check className="w-4 h-4 text-emerald-500" />
-            {analysisLabels[analysisType]}
-          </div>
-        </div>
-        <div className="relative">
-          <button
-            onClick={onToggleAnalysisMenu}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-background hover:bg-secondary border border-border hover:border-muted-foreground rounded-lg text-[13px] font-semibold text-muted-foreground hover:text-foreground transition-all"
-          >
-            {/* Show current profile label or fallback to translation */}
-            {currentProfileLabel || (handleProfileSelect && profiles.length > 0 ? t('reanalyze') : t('change'))}
-            <ChevronDown className="w-4 h-4" />
-          </button>
-          {showAnalysisMenu && (
-            <div className="absolute right-0 top-full mt-2 bg-background border border-border rounded-lg overflow-hidden z-10 shadow-lg min-w-[220px]">
-              {handleProfileSelect && profiles.length > 0 ? (
-                // Show profile options with current profile highlighted
-                profiles.map((profile) => (
-                  <button
-                    key={profile.id}
-                    onClick={() => {
-                      handleProfileSelect(profile.id)
-                      onToggleAnalysisMenu()
-                    }}
-                    className={`block w-full px-4 py-2.5 text-left transition-colors hover:bg-muted ${
-                      currentProfileId === profile.id ? 'bg-secondary' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-[13px] font-medium text-foreground">{profile.label}</div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">{profile.intent}</div>
+      <div className="flex items-start gap-3 mb-5">
+        <div className="text-[11px] font-bold text-primary uppercase tracking-[1px] pt-2.5">{t('label')}</div>
+        {/* Profile dropdown with intent below */}
+        <div>
+          <div className="relative">
+            <button
+              onClick={onToggleAnalysisMenu}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-background hover:bg-secondary border border-border hover:border-muted-foreground rounded-lg text-sm font-semibold text-foreground hover:text-foreground transition-all"
+            >
+              <Check className="w-4 h-4 text-emerald-500" />
+              {currentProfileId ? t(`profiles.${currentProfileId}.label`) : analysisLabels[analysisType]}
+              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+            </button>
+            {showAnalysisMenu && (
+              <div className="absolute left-0 top-full mt-2 bg-background border border-border rounded-lg overflow-hidden z-10 shadow-lg min-w-[220px]">
+                {handleProfileSelect && profiles.length > 0 ? (
+                  // Show profile options with current profile highlighted
+                  profiles.map((profile) => (
+                    <button
+                      key={profile.id}
+                      onClick={() => {
+                        handleProfileSelect(profile.id)
+                        onToggleAnalysisMenu()
+                      }}
+                      className={`block w-full px-4 py-2.5 text-left transition-colors hover:bg-muted ${
+                        currentProfileId === profile.id ? 'bg-secondary' : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-[13px] font-medium text-foreground">{t(`profiles.${profile.id}.label`)}</div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5">{t(`profiles.${profile.id}.intent`)}</div>
+                        </div>
+                        {currentProfileId === profile.id && (
+                          <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                        )}
                       </div>
-                      {currentProfileId === profile.id && (
-                        <Check className="w-4 h-4 text-primary flex-shrink-0" />
-                      )}
-                    </div>
-                  </button>
-                ))
-              ) : (
-                // Fallback to original type selector
-                (["summary", "action-items", "sentiment"] as const).map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => {
-                      onAnalysisTypeChange(type)
-                      onToggleAnalysisMenu()
-                    }}
-                    className={`block w-full px-4 py-2.5 text-[13px] font-medium text-left transition-colors ${
-                      analysisType === type
-                        ? "bg-secondary text-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {analysisLabels[type]}
-                  </button>
-                ))
-              )}
-            </div>
-          )}
+                    </button>
+                  ))
+                ) : (
+                  // Fallback to original type selector
+                  (["summary", "action-items", "sentiment"] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        onAnalysisTypeChange(type)
+                        onToggleAnalysisMenu()
+                      }}
+                      className={`block w-full px-4 py-2.5 text-[13px] font-medium text-left transition-colors ${
+                        analysisType === type
+                          ? "bg-secondary text-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {analysisLabels[type]}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

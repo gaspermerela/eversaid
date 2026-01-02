@@ -47,6 +47,8 @@ export interface UseAnalysisReturn {
   currentProfileId: string | null
   /** Label of currently selected profile (for dropdown button text) */
   currentProfileLabel: string | null
+  /** Intent of currently selected profile (for subtitle display) */
+  currentProfileIntent: string | null
   /** Select a profile - checks cache, then API, then triggers LLM if needed */
   selectProfile: (profileId: string) => Promise<void>
   /** Trigger analysis with a specific profile (always triggers new LLM call) */
@@ -114,7 +116,7 @@ function parseAnalysisResult(result: Record<string, unknown> | null | undefined)
  * ```
  */
 export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
-  const { cleanupId, analysisId: initialAnalysisId, defaultProfile = 'generic-summary' } = options
+  const { cleanupId, analysisId: initialAnalysisId, defaultProfile: defaultProfileOverride } = options
 
   const [data, setData] = useState<ParsedAnalysisData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -123,6 +125,8 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
   const [profiles, setProfiles] = useState<AnalysisProfile[]>([])
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false)
   const [analysisId, setAnalysisId] = useState<string | null>(null)
+  // Default profile ID from API (or override from options)
+  const [defaultProfileId, setDefaultProfileId] = useState<string>(defaultProfileOverride ?? 'generic-summary')
 
   // Cache of analyses by profile_id
   const [analysisCache, setAnalysisCache] = useState<Map<string, AnalysisResult>>(new Map())
@@ -134,6 +138,13 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
     if (!currentProfileId) return null
     const profile = profiles.find(p => p.id === currentProfileId)
     return profile?.label ?? null
+  }, [currentProfileId, profiles])
+
+  // Computed current profile intent for subtitle display
+  const currentProfileIntent = useMemo(() => {
+    if (!currentProfileId) return null
+    const profile = profiles.find(p => p.id === currentProfileId)
+    return profile?.intent ?? null
   }, [currentProfileId, profiles])
 
   // Polling interval ref
@@ -213,7 +224,8 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
   /**
    * Trigger analysis (always triggers new LLM call)
    */
-  const analyze = useCallback(async (profileId: string = defaultProfile) => {
+  const analyze = useCallback(async (profileId?: string) => {
+    const profile = profileId ?? defaultProfileId
     if (!cleanupId) {
       setError('No cleanup ID available')
       return
@@ -221,10 +233,10 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
 
     setIsLoading(true)
     setError(null)
-    setCurrentProfileId(profileId)
+    setCurrentProfileId(profile)
 
     try {
-      const { data: job } = await triggerAnalysis(cleanupId, profileId)
+      const { data: job } = await triggerAnalysis(cleanupId, profile)
       setAnalysisId(job.id)
 
       // Start polling for results
@@ -246,12 +258,12 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
       setError(errorMessage)
       toast.error(errorMessage)
     }
-  }, [cleanupId, defaultProfile, startPolling])
+  }, [cleanupId, defaultProfileId, startPolling])
 
   /**
    * Initialize from analyses list (called when loading entry)
    * Note: List endpoint doesn't include `result`, so we fetch individually if needed
-   * Always prioritizes showing "generic-summary" profile by default
+   * Prioritizes the API default profile, then falls back to first analysis
    */
   const populateCache = useCallback((analyses: AnalysisResult[]) => {
     // Clear cache - list doesn't have results, cache only stores individual fetches
@@ -259,8 +271,8 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
 
     if (analyses.length === 0) return
 
-    // Prioritize generic-summary, fall back to first (most recent) analysis
-    const defaultAnalysis = analyses.find(a => a.profile_id === defaultProfile) || analyses[0]
+    // Prioritize API default profile, fall back to first (most recent) analysis
+    const defaultAnalysis = analyses.find(a => a.profile_id === defaultProfileId) || analyses[0]
 
     setCurrentProfileId(defaultAnalysis.profile_id)
     setAnalysisId(defaultAnalysis.id)
@@ -287,7 +299,7 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
       // Still processing - start polling
       startPolling(defaultAnalysis.id)
     }
-  }, [defaultProfile, startPolling])
+  }, [defaultProfileId, startPolling])
 
   /**
    * Select a profile - checks cache, then API, then triggers LLM if needed
@@ -360,15 +372,19 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
   const loadProfiles = useCallback(async () => {
     setIsLoadingProfiles(true)
     try {
-      const { data: profileList } = await getAnalysisProfiles()
+      const { data: profileList, defaultProfileId: apiDefault } = await getAnalysisProfiles()
       setProfiles(profileList)
+      // Use API default unless overridden in options
+      if (!defaultProfileOverride) {
+        setDefaultProfileId(apiDefault)
+      }
     } catch (err) {
       console.error('Failed to load analysis profiles:', err)
       // Don't show error toast for profile loading - not critical
     } finally {
       setIsLoadingProfiles(false)
     }
-  }, [])
+  }, [defaultProfileOverride])
 
   /**
    * Reset state
@@ -435,6 +451,7 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
     analysisId,
     currentProfileId,
     currentProfileLabel,
+    currentProfileIntent,
     selectProfile,
     analyze,
     loadProfiles,

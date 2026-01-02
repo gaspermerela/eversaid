@@ -667,6 +667,7 @@ export default function DemoPage() {
                   profiles={analysisHook.profiles}
                   currentProfileId={analysisHook.currentProfileId}
                   currentProfileLabel={analysisHook.currentProfileLabel}
+                  currentProfileIntent={analysisHook.currentProfileIntent}
                   onAnalysisTypeChange={setAnalysisType}
                   onToggleAnalysisMenu={handleToggleAnalysisMenu}
                   onSelectProfile={handleSelectProfile}
