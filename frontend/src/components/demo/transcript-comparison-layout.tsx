@@ -144,7 +144,37 @@ export function TranscriptComparisonLayout({
     })
   }
 
-  // Removed height sync logic - it was preventing proper scrolling when columns had different total heights
+  // Sync heights of corresponding segments so they align horizontally
+  useEffect(() => {
+    const syncHeights = () => {
+      segments.forEach((seg) => {
+        const rawEl = rawScrollRef.current?.querySelector(`[data-segment-id="${seg.id}"]`) as HTMLElement | null
+        const cleanedEl = cleanedScrollRef.current?.querySelector(`[data-segment-id="${seg.id}"]`) as HTMLElement | null
+
+        if (rawEl && cleanedEl) {
+          // Reset heights first to get natural heights
+          rawEl.style.minHeight = ''
+          cleanedEl.style.minHeight = ''
+
+          // Get natural heights
+          const rawHeight = rawEl.offsetHeight
+          const cleanedHeight = cleanedEl.offsetHeight
+
+          // Set both to the max height
+          const maxHeight = Math.max(rawHeight, cleanedHeight)
+          rawEl.style.minHeight = `${maxHeight}px`
+          cleanedEl.style.minHeight = `${maxHeight}px`
+        }
+      })
+    }
+
+    // Run after render
+    requestAnimationFrame(syncHeights)
+
+    // Re-sync on window resize
+    window.addEventListener('resize', syncHeights)
+    return () => window.removeEventListener('resize', syncHeights)
+  }, [segments, showDiff, editedTexts, editingSegmentId])
 
   return (
     <div className={`relative flex flex-col ${variant === "demo" && !isExpanded ? "" : "h-full"}`}>
