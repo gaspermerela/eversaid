@@ -32,11 +32,12 @@ import { addEntryId, cacheEntry } from "@/lib/storage"
 
 /**
  * Mock segments data for development and testing
+ * Note: speaker is 0-based index (0 = "Speaker 1", 1 = "Speaker 2")
  */
 const MOCK_SEGMENTS: Segment[] = [
   {
     id: "seg-1",
-    speaker: 1,
+    speaker: 0,
     time: "0:00 – 0:18",
     rawText:
       "Uh so basically what we're trying to do here is um figure out the best approach for the the project timeline and um you know make sure everyone's on the same page.",
@@ -47,7 +48,7 @@ const MOCK_SEGMENTS: Segment[] = [
   },
   {
     id: "seg-2",
-    speaker: 2,
+    speaker: 1,
     time: "0:19 – 0:42",
     rawText:
       "Yeah I think we should we should probably start with the the research phase first you know and then move on to to the design work after we have all the the data we need.",
@@ -58,7 +59,7 @@ const MOCK_SEGMENTS: Segment[] = [
   },
   {
     id: "seg-3",
-    speaker: 1,
+    speaker: 0,
     time: "0:43 – 1:05",
     rawText:
       "That makes sense um and I was thinking maybe we could also like bring in some external consultants to help with the the technical aspects of the project.",
@@ -69,7 +70,7 @@ const MOCK_SEGMENTS: Segment[] = [
   },
   {
     id: "seg-4",
-    speaker: 2,
+    speaker: 1,
     time: "1:06 – 1:28",
     rawText:
       "Sure that's a good idea I mean we we definitely need some expertise in in the machine learning side of things especially for the the data processing pipeline.",
@@ -80,7 +81,7 @@ const MOCK_SEGMENTS: Segment[] = [
   },
   {
     id: "seg-5",
-    speaker: 1,
+    speaker: 0,
     time: "1:29 – 1:55",
     rawText:
       "Right right and um what about the the budget like do we have enough um resources allocated for for bringing in outside help or should we should we look at maybe reallocating from other areas?",
@@ -91,7 +92,7 @@ const MOCK_SEGMENTS: Segment[] = [
   },
   {
     id: "seg-6",
-    speaker: 2,
+    speaker: 1,
     time: "1:56 – 2:24",
     rawText:
       "Well I I think we have some some flexibility there um the Q3 budget had a a contingency fund set aside so so we could tap into that if if needed you know what I mean.",
@@ -102,7 +103,7 @@ const MOCK_SEGMENTS: Segment[] = [
   },
   {
     id: "seg-7",
-    speaker: 1,
+    speaker: 0,
     time: "2:25 – 2:58",
     rawText:
       "Perfect that's that's great to hear um so let's let's plan to to have like a follow-up meeting next week to to finalize the the consultant requirements and um get the ball rolling on that.",
@@ -113,7 +114,7 @@ const MOCK_SEGMENTS: Segment[] = [
   },
   {
     id: "seg-8",
-    speaker: 2,
+    speaker: 1,
     time: "2:59 – 3:28",
     rawText:
       "Sounds good I'll I'll send out a a calendar invite for for Thursday afternoon if if that works for everyone and uh we can we can also invite Sarah from from procurement to to help with the the vendor selection process.",
@@ -241,15 +242,6 @@ function formatTime(seconds: number): string {
 }
 
 /**
- * Parse speaker number from string like "Speaker 1" → 1
- */
-function parseSpeakerNumber(speaker?: string): number {
-  if (!speaker) return 0
-  const match = speaker.match(/(\d+)/)
-  return match ? parseInt(match[1], 10) : 0
-}
-
-/**
  * Transform API segments to frontend Segment format
  *
  * @param rawSegments - Array of segments from API
@@ -288,7 +280,7 @@ function transformApiSegments(
 
     return {
       id: rawSeg.id || `seg-${index}`,
-      speaker: rawSeg.speaker_id ?? parseSpeakerNumber(rawSeg.speaker),
+      speaker: rawSeg.speaker ?? 0,
       time: timeStr,
       rawText: rawSeg.text,
       cleanedText: cleanedSeg?.text || rawSeg.text,
@@ -513,7 +505,7 @@ export function useTranscription(
                 setSegments(transformedSegments)
 
                 // Check for missing cleaned_segments when diarization detected multiple speakers
-                const uniqueSpeakers = new Set(rawSegments.map(s => s.speaker || s.speaker_id))
+                const uniqueSpeakers = new Set(rawSegments.map(s => s.speaker ?? 0))
                 const hasMultipleSpeakers = uniqueSpeakers.size > 1
                 const cleanedSegmentsMissing = !cleanedEntry.cleaned_segments || cleanedEntry.cleaned_segments.length === 0
 
@@ -807,7 +799,7 @@ export function useTranscription(
         setSegments(transformedSegments)
 
         // Check for missing cleaned_segments when diarization detected multiple speakers
-        const uniqueSpeakers = new Set(rawSegments.map(s => s.speaker || s.speaker_id))
+        const uniqueSpeakers = new Set(rawSegments.map(s => s.speaker ?? 0))
         const hasMultipleSpeakers = uniqueSpeakers.size > 1
         const cleanedSegmentsMissing = cleanedSegments.length === 0
 

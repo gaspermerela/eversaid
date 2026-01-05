@@ -2,9 +2,11 @@
 
 import type React from "react"
 import { RotateCcw, Check, X, Undo2 } from "lucide-react"
+import { useTranslations } from "next-intl"
 import type { SpellcheckError } from "./types"
 import { DiffSegmentDisplay } from "./diff-segment-display"
 import { filterSelectionForDiff } from "@/lib/text-selection-utils"
+import { getSpeakerBorderColor, getSpeakerTextColor } from "@/lib/speaker-utils"
 
 export interface EditableSegmentRowProps {
   id: string
@@ -79,6 +81,8 @@ export function EditableSegmentRow({
   onMoveTargetClick,
   onSegmentClick,
 }: EditableSegmentRowProps) {
+  const t = useTranslations("demo")
+
   const handleMouseUp = () => {
     if (isSelectingMoveTarget || isEditing) return
     const selection = window.getSelection()
@@ -164,7 +168,7 @@ export function EditableSegmentRow({
           isActive
             ? "bg-blue-100 shadow-[0_0_0_2px_rgba(59,130,246,0.25),0_4px_12px_rgba(0,0,0,0.08)]"
             : "bg-secondary"
-        } ${showSpeakerLabels ? (speaker === 1 ? "border-primary" : "border-purple-500") : "border-border"}`}
+        } ${showSpeakerLabels ? getSpeakerBorderColor(speaker) : "border-border"}`}
         onClick={handleClick}
         onMouseUp={handleMouseUp}
       >
@@ -175,8 +179,8 @@ export function EditableSegmentRow({
         <div className="flex justify-between items-center mb-2">
           <div className="flex items-center gap-2">
             {showSpeakerLabels && (
-              <span className={`text-xs font-bold ${speaker === 1 ? "text-blue-600" : "text-purple-600"}`}>
-                Speaker {speaker}
+              <span className={`text-xs font-bold ${getSpeakerTextColor(speaker)}`}>
+                {t("transcript.speaker", { number: speaker + 1 })}
               </span>
             )}
             <span className="text-[11px] text-muted-foreground font-medium">{time}</span>

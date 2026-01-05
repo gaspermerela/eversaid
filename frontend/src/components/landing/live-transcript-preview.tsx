@@ -13,7 +13,7 @@ function useLocalizedSegments(): Segment[] {
   return useMemo(() => [
     {
       id: "seg-1",
-      speaker: 1,
+      speaker: 0,  // 0-based index (displays as "Speaker 1")
       time: "0:00 – 0:11",
       rawText: t('segment1.raw'),
       cleanedText: t('segment1.cleaned'),
@@ -21,7 +21,7 @@ function useLocalizedSegments(): Segment[] {
     },
     {
       id: "seg-2",
-      speaker: 2,
+      speaker: 1,  // 0-based index (displays as "Speaker 2")
       time: "0:12 – 0:22",
       rawText: t('segment2.raw'),
       cleanedText: t('segment2.cleaned'),
@@ -29,7 +29,7 @@ function useLocalizedSegments(): Segment[] {
     },
     {
       id: "seg-3",
-      speaker: 1,
+      speaker: 0,  // 0-based index (displays as "Speaker 1")
       time: "0:23 – 0:34",
       rawText: t('segment3.raw'),
       cleanedText: t('segment3.cleaned'),
@@ -39,10 +39,11 @@ function useLocalizedSegments(): Segment[] {
 }
 
 // Keep for backwards compatibility if needed
+// Note: speaker is 0-based index (0 = "Speaker 1", 1 = "Speaker 2")
 export const landingPageSegments: Segment[] = [
   {
     id: "seg-1",
-    speaker: 1,
+    speaker: 0,
     time: "0:00 – 0:11",
     rawText: "So basically I just wanted to to walk you through um what we're thinking for the the website redesign.",
     cleanedText: "I wanted to walk you through what we're thinking for the website redesign.",
@@ -51,7 +52,7 @@ export const landingPageSegments: Segment[] = [
   },
   {
     id: "seg-2",
-    speaker: 2,
+    speaker: 1,
     time: "0:12 – 0:22",
     rawText: "Yeah that sounds good I'm I'm really excited to to see what you've come up with you know.",
     cleanedText: "That sounds good. I'm really excited to see what you've come up with.",
@@ -59,7 +60,7 @@ export const landingPageSegments: Segment[] = [
   },
   {
     id: "seg-3",
-    speaker: 1,
+    speaker: 0,
     time: "0:23 – 0:34",
     rawText:
       "Perfect so we're gonna we're gonna focus on three main areas I mean the homepage the the product pages and checkout.",

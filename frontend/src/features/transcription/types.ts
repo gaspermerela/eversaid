@@ -84,7 +84,7 @@ export interface TranscriptionWord {
   start: number  // seconds
   end: number    // seconds
   type: 'word' | 'spacing' | 'audio_event'
-  speaker_id?: string
+  speaker_id?: number | null  // 0-based speaker index from API
 }
 
 /**
@@ -95,8 +95,7 @@ export interface ApiSegment {
   start: number
   end: number
   text: string
-  speaker?: string
-  speaker_id?: number
+  speaker?: number | null  // 0-based speaker index from API
   words?: TranscriptionWord[]
 }
 
@@ -123,8 +122,7 @@ export interface CleanedSegment {
   start: number
   end: number
   text: string
-  speaker?: string
-  speaker_id?: number
+  speaker?: number | null  // 0-based speaker index from API
   raw_segment_id?: string
   spellcheck_errors?: Array<{
     word: string

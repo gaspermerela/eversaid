@@ -3,7 +3,9 @@
 import type React from "react"
 
 import { forwardRef } from "react"
+import { useTranslations } from "next-intl"
 import type { TranscriptionWord } from "@/features/transcription/types"
+import { getSpeakerBorderColor, getSpeakerTextColor } from "@/lib/speaker-utils"
 import { HighlightedText } from "./highlighted-text"
 
 export interface RawSegmentListProps {
@@ -42,6 +44,8 @@ export const RawSegmentList = forwardRef<HTMLDivElement, RawSegmentListProps>(
     },
     ref,
   ) => {
+    const t = useTranslations("demo")
+
     const handleMouseUp = (segmentId: string) => {
       const selection = window.getSelection()
       if (selection && selection.toString().trim()) {
@@ -65,7 +69,7 @@ export const RawSegmentList = forwardRef<HTMLDivElement, RawSegmentListProps>(
                 seg.id === activeSegmentId
                   ? "bg-blue-100 shadow-[0_0_0_2px_rgba(59,130,246,0.25),0_4px_12px_rgba(0,0,0,0.08)]"
                   : "bg-secondary"
-              } ${showSpeakerLabels ? (seg.speaker === 1 ? "border-primary" : "border-purple-500") : "border-border"} ${
+              } ${showSpeakerLabels ? getSpeakerBorderColor(seg.speaker) : "border-border"} ${
                 isValidTarget ? "ring-2 ring-primary ring-offset-2 hover:bg-blue-50/50 cursor-pointer" : ""
               } ${isSource ? "opacity-60" : ""}`}
               onClick={() => onSegmentClick(seg.id)}
@@ -74,8 +78,8 @@ export const RawSegmentList = forwardRef<HTMLDivElement, RawSegmentListProps>(
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center gap-2">
                   {showSpeakerLabels && (
-                    <span className={`text-xs font-bold ${seg.speaker === 1 ? "text-blue-600" : "text-purple-600"}`}>
-                      Speaker {seg.speaker}
+                    <span className={`text-xs font-bold ${getSpeakerTextColor(seg.speaker)}`}>
+                      {t("transcript.speaker", { number: seg.speaker + 1 })}
                     </span>
                   )}
                   <span className="text-[11px] text-muted-foreground font-medium">{seg.time}</span>
