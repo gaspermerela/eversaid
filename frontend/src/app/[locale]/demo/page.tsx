@@ -152,48 +152,6 @@ function DemoPageContent() {
   const [showRateLimitModal, setShowRateLimitModal] = useState(false)
   const rateLimits = useRateLimits()
 
-  const rawScrollRef = useRef<HTMLDivElement>(null)
-  const cleanedScrollRef = useRef<HTMLDivElement>(null)
-  const isSyncingScrollRef = useRef(false)
-
-  const handleRawScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (isSyncingScrollRef.current) return
-
-    const rawEl = e.currentTarget
-    const cleanedEl = cleanedScrollRef.current
-    if (!cleanedEl) return
-
-    isSyncingScrollRef.current = true
-
-    // Calculate scroll percentage
-    const scrollPercentage = rawEl.scrollTop / (rawEl.scrollHeight - rawEl.clientHeight)
-    // Apply to cleaned side
-    cleanedEl.scrollTop = scrollPercentage * (cleanedEl.scrollHeight - cleanedEl.clientHeight)
-
-    requestAnimationFrame(() => {
-      isSyncingScrollRef.current = false
-    })
-  }
-
-  const handleCleanedScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (isSyncingScrollRef.current) return
-
-    const cleanedEl = e.currentTarget
-    const rawEl = rawScrollRef.current
-    if (!rawEl) return
-
-    isSyncingScrollRef.current = true
-
-    // Calculate scroll percentage
-    const scrollPercentage = cleanedEl.scrollTop / (cleanedEl.scrollHeight - cleanedEl.clientHeight)
-    // Apply to raw side
-    rawEl.scrollTop = scrollPercentage * (rawEl.scrollHeight - rawEl.clientHeight)
-
-    requestAnimationFrame(() => {
-      isSyncingScrollRef.current = false
-    })
-  }
-
   // Load entry from URL query param on mount (for browser back button support)
   useEffect(() => {
     const entryId = searchParams.get('entry')
@@ -203,14 +161,25 @@ function DemoPageContent() {
   }, [searchParams, transcription.entryId, transcription.status, transcription.loadEntry])
 
   // Update URL when entry is loaded (creates browser history entry)
+  // Use a ref to track if we've already pushed this entry to avoid loops
+  const pushedEntryRef = useRef<string | null>(null)
   useEffect(() => {
-    if (transcription.entryId && transcription.segments.length > 0) {
+    // Only update URL when transcription is complete and we have an entryId
+    if (transcription.entryId && transcription.status === 'complete') {
       const currentEntry = searchParams.get('entry')
-      if (currentEntry !== transcription.entryId) {
+      // Only push if:
+      // 1. URL doesn't match current entryId
+      // 2. We haven't already pushed this entryId
+      if (currentEntry !== transcription.entryId && pushedEntryRef.current !== transcription.entryId) {
+        pushedEntryRef.current = transcription.entryId
         router.push(`/demo?entry=${transcription.entryId}`)
       }
     }
-  }, [transcription.entryId, transcription.segments.length, searchParams, router])
+    // Reset the ref if entryId changes (new entry loaded)
+    if (pushedEntryRef.current && pushedEntryRef.current !== transcription.entryId) {
+      pushedEntryRef.current = null
+    }
+  }, [transcription.entryId, transcription.status, searchParams, router])
 
   // ESC key handler to collapse editor
   useEffect(() => {
@@ -670,7 +639,7 @@ function DemoPageContent() {
               {audioUrl && (
                 <audio src={audioUrl} {...audioPlayer.audioProps} preload="metadata" className="hidden" />
               )}
-              <div className={`bg-gradient-to-b from-muted/30 to-transparent border-b border-border/50 ${
+              <div className={`bg-gradient-to-b from-muted/30 to-transparent border-b border-border/50 flex-shrink-0 ${
                 isEditorExpanded ? "rounded-none" : "rounded-t-lg"
               }`}>
                 <AudioPlayer

@@ -85,23 +85,75 @@ test.describe("Audio Player", () => {
   })
 
   test("speed control changes playback rate", async ({ page }) => {
-    // Find speed button (shows "1x") using first() since menu also has speed options
-    const speedButton = audioPlayerBar.locator("button").filter({ hasText: "1x" }).first()
+    // First expand editor so the speed menu dropdown isn't blocked by the expand overlay
+    const expandOverlay = page.getByRole("button", { name: /expand editor/i })
+    await expandOverlay.click()
+    await page.waitForTimeout(300)
+
+    // Find speed button (shows "1x")
+    const speedButton = audioPlayerBar.locator("button").filter({ hasText: /^1x$/ })
     await expect(speedButton).toBeVisible()
-    await expect(speedButton).toBeEnabled()
 
     // Click to open speed menu
     await speedButton.click()
 
-    // Speed menu should appear with 1.5x option
-    const speedOption = page.getByRole("button", { name: "1.5x" })
+    // Speed menu should appear - wait for it
+    await page.waitForTimeout(200)
+
+    // Select 1.5x speed from the dropdown menu
+    const speedOption = page.locator("button").filter({ hasText: /^1\.5x$/ }).last()
     await expect(speedOption).toBeVisible()
+    await speedOption.click()
 
-    // Select 1.5x speed (force click to handle menu animation)
-    await speedOption.click({ force: true })
+    // Wait for state update
+    await page.waitForTimeout(300)
 
-    // Speed button should now show 1.5x (menu closes, button updates)
-    const updatedSpeedButton = audioPlayerBar.locator("button").filter({ hasText: "1.5x" })
-    await expect(updatedSpeedButton).toBeVisible()
+    // Speed button should now show 1.5x
+    await expect(audioPlayerBar.locator("button").filter({ hasText: /^1\.5x$/ })).toBeVisible({ timeout: 5000 })
   })
+
+  // Regression tests for audio player visibility bug (fixed in flex layout update)
+  test("stays visible when starting playback", async ({ page }) => {
+    // Audio player should be visible initially
+    await expect(audioPlayerBar).toBeVisible()
+
+    // Click play button WITHOUT clicking any segment first
+    const playButton = audioPlayerBar.locator("button").first()
+    await playButton.click()
+
+    // Wait for playback to start
+    await page.waitForTimeout(1000)
+
+    // Audio player should STILL be visible
+    await expect(audioPlayerBar).toBeVisible()
+  })
+
+  test("stays visible after clicking segment and playing", async ({ page }) => {
+    // First expand to access segments (overlay covers them in collapsed mode)
+    const expandOverlay = page.getByRole("button", { name: /expand editor/i })
+    await expandOverlay.click()
+    await page.waitForTimeout(300)
+
+    // Click segment 2
+    const segment2 = page.locator('[data-segment-id="seg-2"]').first()
+    await expect(segment2).toBeVisible()
+    await segment2.click()
+
+    // Wait for seek to complete
+    await page.waitForTimeout(500)
+
+    // Audio player should still be visible after segment click
+    await expect(audioPlayerBar).toBeVisible()
+
+    // Click play button
+    const playButton = audioPlayerBar.locator("button").first()
+    await playButton.click()
+
+    // Wait for playback to start
+    await page.waitForTimeout(1000)
+
+    // Audio player should STILL be visible
+    await expect(audioPlayerBar).toBeVisible()
+  })
+
 })

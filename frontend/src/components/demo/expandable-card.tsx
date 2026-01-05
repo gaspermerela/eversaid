@@ -65,7 +65,7 @@ export function ExpandableCard({
       layout
       transition={springTransition}
       className={`bg-card shadow-lg border border-border overflow-hidden ${className} ${
-        isExpanded ? expandedClassName : collapsedClassName
+        isExpanded ? `flex flex-col ${expandedClassName}` : collapsedClassName
       }`}
       style={
         isExpanded
