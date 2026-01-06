@@ -294,7 +294,7 @@ describe('API Client', () => {
   })
 
   describe('saveUserEdit', () => {
-    it('sends PUT request with edited text', async () => {
+    it('sends PUT request with edited data (words-first format)', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -302,13 +302,19 @@ describe('API Client', () => {
         json: () => Promise.resolve({ id: 'cleanup-123' }),
       })
 
-      await saveUserEdit('cleanup-123', 'Edited text')
+      const editedData = {
+        words: [
+          { id: 0, text: 'Edited text', start: 0, end: 1, speaker_id: 0, type: 'segment_text' as const },
+        ],
+      }
+
+      await saveUserEdit('cleanup-123', editedData)
 
       expect(mockFetch).toHaveBeenCalledWith(
         `${API_BASE_URL}/api/cleaned-entries/cleanup-123/user-edit`,
         expect.objectContaining({
           method: 'PUT',
-          body: JSON.stringify({ edited_text: 'Edited text' }),
+          body: JSON.stringify({ edited_data: editedData }),
         })
       )
     })

@@ -21,9 +21,9 @@ router = APIRouter(tags=["core"])
 
 
 class UserEditRequest(BaseModel):
-    """Request body for editing cleaned text."""
+    """Request body for editing cleaned text (words-first format)."""
 
-    edited_text: str
+    edited_data: dict  # TranscriptionData structure with words array
 
 
 class AnalyzeRequest(BaseModel):

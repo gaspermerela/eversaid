@@ -199,11 +199,31 @@ export interface CleanedEntry {
   prompt_template_id?: number | null
   prompt_name?: string | null
   prompt_description?: string | null
-  user_edited_text: string | null
+  cleanup_data_edited: CleanedSegment[] | null
   user_edited_at?: string | null
   cleaned_segments?: CleanedSegment[] | null
   segment_validation?: SegmentValidation | null
   spelling_issues?: SpellingIssue[] | null
+}
+
+/**
+ * Word/segment in the edit request (words-first format)
+ * For segment-level editing, use type: "segment_text"
+ */
+export interface EditWord {
+  id: number
+  text: string
+  start: number
+  end: number
+  speaker_id: number | null
+  type: 'word' | 'segment_text'
+}
+
+/**
+ * Edit request data structure (TranscriptionData format)
+ */
+export interface EditedData {
+  words: EditWord[]
 }
 
 /**

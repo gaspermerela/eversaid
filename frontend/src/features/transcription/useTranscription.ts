@@ -16,6 +16,8 @@ import type {
   RateLimitInfo,
   AnalysisResult,
   TranscriptionWord,
+  EditWord,
+  EditedData,
 } from "./types"
 import { ApiError } from "./types"
 import { parseAllSegmentTimes, findSegmentAtTime } from "@/lib/time-utils"
@@ -171,6 +173,12 @@ export interface UseTranscriptionReturn {
   updateSegmentCleanedText: (segmentId: string, text: string) => Promise<void>
 
   /**
+   * Update multiple segments at once (for text move feature)
+   * @param updates - Map of segmentId to new text
+   */
+  updateMultipleSegments: (updates: Map<string, string>) => Promise<void>
+
+  /**
    * Revert a segment's cleaned text back to raw text
    * @param segmentId - ID of the segment to revert
    * @returns The original cleaned text (for undo functionality)
@@ -182,7 +190,7 @@ export interface UseTranscriptionReturn {
    * @param segmentId - ID of the segment
    * @param originalCleanedText - The cleaned text to restore
    */
-  undoRevert: (segmentId: string, originalCleanedText: string) => void
+  undoRevert: (segmentId: string, originalCleanedText: string) => Promise<void>
 
   /**
    * Check if a segment has been reverted
@@ -355,10 +363,33 @@ export function useTranscription(
   )
 
   /**
+   * Convert segments to EditWord array for API (words-first format)
+   */
+  const segmentsToEditWords = useCallback(
+    (segs: SegmentWithTime[]): EditWord[] => {
+      return segs.map((seg, index) => ({
+        id: index,
+        text: seg.cleanedText,
+        start: seg.startTime,
+        end: seg.endTime,
+        speaker_id: seg.speaker ?? null,
+        type: "segment_text" as const,
+      }))
+    },
+    []
+  )
+
+  /**
    * Update the cleaned text of a segment (calls API in non-mock mode)
+   * Sends ALL segments to API on every save (words-first format)
    */
   const updateSegmentCleanedText = useCallback(
     async (segmentId: string, text: string) => {
+      // Build updated segments array with the edit applied
+      const updatedSegments = segmentsWithTime.map((seg) =>
+        seg.id === segmentId ? { ...seg, cleanedText: text } : seg
+      )
+
       // Update local state immediately for responsiveness
       setSegments((prev) =>
         prev.map((seg) =>
@@ -373,29 +404,51 @@ export function useTranscription(
         return newMap
       })
 
-      // Call API in non-mock mode
+      // Call API in non-mock mode - send ALL segments
       if (!mockMode && cleanupId) {
         try {
-          await saveUserEdit(cleanupId, text)
+          const editedData: EditedData = {
+            words: segmentsToEditWords(updatedSegments),
+          }
+          const { data } = await saveUserEdit(cleanupId, editedData)
+
+          // Reconcile with API response if available
+          if (data.cleanup_data_edited) {
+            setSegments((prev) =>
+              prev.map((seg, index) => {
+                const apiSegment = data.cleanup_data_edited?.[index]
+                if (apiSegment && apiSegment.text !== null) {
+                  return { ...seg, cleanedText: apiSegment.text }
+                }
+                return seg
+              })
+            )
+          }
         } catch (err) {
           // Log error but don't revert - local state is source of truth for edits
           console.error("Failed to save edit to server:", err)
         }
       }
     },
-    [mockMode, cleanupId]
+    [mockMode, cleanupId, segmentsWithTime, segmentsToEditWords]
   )
 
   /**
    * Revert a segment's cleaned text back to raw text
    * Returns the original cleaned text for potential undo
+   * Now uses PUT endpoint to save all segments (preserves other edits)
    */
   const revertSegmentToRaw = useCallback(
     async (segmentId: string): Promise<string | undefined> => {
-      const segment = segments.find((s) => s.id === segmentId)
+      const segment = segmentsWithTime.find((s) => s.id === segmentId)
       if (!segment) return undefined
 
       const originalCleanedText = segment.cleanedText
+
+      // Build updated segments with this one reverted to raw
+      const updatedSegments = segmentsWithTime.map((seg) =>
+        seg.id === segmentId ? { ...seg, cleanedText: seg.rawText } : seg
+      )
 
       // Save original cleaned text for undo
       setRevertedSegments((prev) =>
@@ -409,10 +462,13 @@ export function useTranscription(
         )
       )
 
-      // Call API in non-mock mode
+      // Call API in non-mock mode - save ALL segments
       if (!mockMode && cleanupId) {
         try {
-          await revertUserEdit(cleanupId)
+          const editedData: EditedData = {
+            words: segmentsToEditWords(updatedSegments),
+          }
+          await saveUserEdit(cleanupId, editedData)
         } catch (err) {
           console.error("Failed to revert on server:", err)
         }
@@ -420,14 +476,20 @@ export function useTranscription(
 
       return originalCleanedText
     },
-    [segments, mockMode, cleanupId]
+    [segmentsWithTime, mockMode, cleanupId, segmentsToEditWords]
   )
 
   /**
    * Undo a revert by restoring the original cleaned text
+   * Now also saves to API
    */
   const undoRevert = useCallback(
-    (segmentId: string, originalCleanedText: string) => {
+    async (segmentId: string, originalCleanedText: string) => {
+      // Build updated segments with this one restored
+      const updatedSegments = segmentsWithTime.map((seg) =>
+        seg.id === segmentId ? { ...seg, cleanedText: originalCleanedText } : seg
+      )
+
       setSegments((prev) =>
         prev.map((seg) =>
           seg.id === segmentId
@@ -440,8 +502,20 @@ export function useTranscription(
         newMap.delete(segmentId)
         return newMap
       })
+
+      // Call API in non-mock mode - save ALL segments
+      if (!mockMode && cleanupId) {
+        try {
+          const editedData: EditedData = {
+            words: segmentsToEditWords(updatedSegments),
+          }
+          await saveUserEdit(cleanupId, editedData)
+        } catch (err) {
+          console.error("Failed to save undo on server:", err)
+        }
+      }
     },
-    []
+    [segmentsWithTime, mockMode, cleanupId, segmentsToEditWords]
   )
 
   /**
@@ -452,6 +526,50 @@ export function useTranscription(
       return revertedSegments.has(segmentId)
     },
     [revertedSegments]
+  )
+
+  /**
+   * Update multiple segments at once (for text move feature)
+   * Accepts a Map of segmentId -> newText and saves all with single API call
+   */
+  const updateMultipleSegments = useCallback(
+    async (updates: Map<string, string>) => {
+      // Build updated segments array with all edits applied
+      const updatedSegments = segmentsWithTime.map((seg) => {
+        const newText = updates.get(seg.id)
+        return newText !== undefined ? { ...seg, cleanedText: newText } : seg
+      })
+
+      // Update local state immediately for responsiveness
+      setSegments((prev) =>
+        prev.map((seg) => {
+          const newText = updates.get(seg.id)
+          return newText !== undefined ? { ...seg, cleanedText: newText } : seg
+        })
+      )
+
+      // Clear reverted status for all updated segments
+      setRevertedSegments((prev) => {
+        const newMap = new Map(prev)
+        for (const segmentId of updates.keys()) {
+          newMap.delete(segmentId)
+        }
+        return newMap
+      })
+
+      // Call API in non-mock mode - send ALL segments
+      if (!mockMode && cleanupId) {
+        try {
+          const editedData: EditedData = {
+            words: segmentsToEditWords(updatedSegments),
+          }
+          await saveUserEdit(cleanupId, editedData)
+        } catch (err) {
+          console.error("Failed to save multiple segments to server:", err)
+        }
+      }
+    },
+    [mockMode, cleanupId, segmentsWithTime, segmentsToEditWords]
   )
 
   /**
@@ -478,12 +596,13 @@ export function useTranscription(
               const { data: cleanedEntry } = await getCleanedEntry(cleanupIdVal)
 
               if (cleanedEntry.status === "completed") {
-                // Transform and set segments
+                // Transform and set segments - prefer user-edited version if available
                 const rawSegments = transcriptionStatus.segments || []
+                const cleanedSegments = cleanedEntry.cleanup_data_edited || cleanedEntry.cleaned_segments || []
                 const flatWords = transcriptionStatus.words || []
                 let transformedSegments = transformApiSegments(
                   rawSegments,
-                  cleanedEntry.cleaned_segments || [],
+                  cleanedSegments,
                   flatWords
                 )
 
@@ -505,11 +624,13 @@ export function useTranscription(
                 setSegments(transformedSegments)
 
                 // Check for missing cleaned_segments when diarization detected multiple speakers
+                // Don't show warning if user has edited data
                 const uniqueSpeakers = new Set(rawSegments.map(s => s.speaker ?? 0))
                 const hasMultipleSpeakers = uniqueSpeakers.size > 1
+                const hasUserEdits = !!cleanedEntry.cleanup_data_edited && cleanedEntry.cleanup_data_edited.length > 0
                 const cleanedSegmentsMissing = !cleanedEntry.cleaned_segments || cleanedEntry.cleaned_segments.length === 0
 
-                if (hasMultipleSpeakers && cleanedSegmentsMissing) {
+                if (hasMultipleSpeakers && cleanedSegmentsMissing && !hasUserEdits) {
                   setCleanedSegmentsWarning(
                     "Per-segment cleanup unavailable. Showing original text."
                   )
@@ -763,12 +884,13 @@ export function useTranscription(
           throw new Error(cleanupData.error_message || "Cleanup failed")
         }
 
-        // Transform segments
+        // Transform segments - prefer user-edited version if available
         const rawSegments = transcription.segments || []
-        const cleanedSegments = cleanupData.cleaned_segments || []
+        const cleanedSegments = cleanupData.cleanup_data_edited || cleanupData.cleaned_segments || []
         const flatWords = transcription.words || []
         console.log("[loadEntry] Raw segments count:", rawSegments.length)
         console.log("[loadEntry] Cleaned segments count:", cleanedSegments.length)
+        console.log("[loadEntry] Using user-edited data:", !!cleanupData.cleanup_data_edited)
         console.log("[loadEntry] Flat words count:", flatWords.length)
         let transformedSegments = transformApiSegments(
           rawSegments,
@@ -799,11 +921,13 @@ export function useTranscription(
         setSegments(transformedSegments)
 
         // Check for missing cleaned_segments when diarization detected multiple speakers
+        // Don't show warning if user has edited data
         const uniqueSpeakers = new Set(rawSegments.map(s => s.speaker ?? 0))
         const hasMultipleSpeakers = uniqueSpeakers.size > 1
-        const cleanedSegmentsMissing = cleanedSegments.length === 0
+        const hasUserEdits = !!cleanupData.cleanup_data_edited && cleanupData.cleanup_data_edited.length > 0
+        const originalCleanedMissing = !cleanupData.cleaned_segments || cleanupData.cleaned_segments.length === 0
 
-        if (hasMultipleSpeakers && cleanedSegmentsMissing) {
+        if (hasMultipleSpeakers && originalCleanedMissing && !hasUserEdits) {
           setCleanedSegmentsWarning(
             "Per-segment cleanup unavailable. Showing original text."
           )
@@ -897,6 +1021,7 @@ export function useTranscription(
     cleanedSegmentsWarning,
     dismissCleanedSegmentsWarning,
     updateSegmentCleanedText,
+    updateMultipleSegments,
     revertSegmentToRaw,
     undoRevert,
     isSegmentReverted,

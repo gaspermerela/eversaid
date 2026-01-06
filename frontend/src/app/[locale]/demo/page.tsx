@@ -383,28 +383,100 @@ function DemoPageContent() {
     window.getSelection()?.removeAllRanges()
   }, [])
 
-  const handleRawMoveTargetClick = useCallback(
-    (targetSegmentId: string) => {
-      // TODO: Text move feature needs API support for moving text between segments
-      // For now, this feature is disabled until API endpoint is available
-      console.warn("Text move feature not yet implemented with API")
+  const handleCleanedMoveTargetClick = useCallback(
+    async (targetSegmentId: string) => {
+      if (!textMoveSelection || textMoveSelection.sourceColumn !== "cleaned") {
+        // Only support moving from cleaned column
+        setTextMoveSelection(null)
+        setIsSelectingMoveTarget(false)
+        window.getSelection()?.removeAllRanges()
+        return
+      }
+
+      const { sourceSegmentId, text: selectedText } = textMoveSelection
+
+      // Don't move to the same segment
+      if (sourceSegmentId === targetSegmentId) {
+        setTextMoveSelection(null)
+        setIsSelectingMoveTarget(false)
+        window.getSelection()?.removeAllRanges()
+        return
+      }
+
+      // Find source and target segments
+      const sourceSegment = transcription.segments.find((s) => s.id === sourceSegmentId)
+      const targetSegment = transcription.segments.find((s) => s.id === targetSegmentId)
+
+      if (!sourceSegment || !targetSegment) {
+        setTextMoveSelection(null)
+        setIsSelectingMoveTarget(false)
+        window.getSelection()?.removeAllRanges()
+        return
+      }
+
+      // Get the current text (either from editedTexts or the segment)
+      const sourceCurrentText = editedTexts.get(sourceSegmentId) ?? sourceSegment.cleanedText
+      const targetCurrentText = editedTexts.get(targetSegmentId) ?? targetSegment.cleanedText
+
+      // Find the selected text in the source text
+      // Note: DOM offsets are unreliable due to diff rendering, so we search for the text instead
+      const selectedTextTrimmed = selectedText.trim()
+      const textIndex = sourceCurrentText.indexOf(selectedTextTrimmed)
+
+      if (textIndex === -1) {
+        // Selected text not found in source - this shouldn't happen but handle gracefully
+        console.warn("Selected text not found in source segment")
+        setTextMoveSelection(null)
+        setIsSelectingMoveTarget(false)
+        window.getSelection()?.removeAllRanges()
+        return
+      }
+
+      // Remove selected text from source
+      const newSourceText =
+        sourceCurrentText.slice(0, textIndex) + sourceCurrentText.slice(textIndex + selectedTextTrimmed.length)
+
+      // Append selected text to target (with space if needed)
+      const needsSpace = targetCurrentText.length > 0 && !targetCurrentText.endsWith(" ")
+      const newTargetText = targetCurrentText + (needsSpace ? " " : "") + selectedTextTrimmed
+
+      // Update both segments via the hook
+      const updates = new Map<string, string>()
+      updates.set(sourceSegmentId, newSourceText.trim())
+      updates.set(targetSegmentId, newTargetText)
+
+      await transcription.updateMultipleSegments(updates)
+
+      // Clear local editing state for these segments
+      setEditedTexts((prev) => {
+        const newMap = new Map(prev)
+        newMap.delete(sourceSegmentId)
+        newMap.delete(targetSegmentId)
+        return newMap
+      })
+
+      // Clear text move state
       setTextMoveSelection(null)
       setIsSelectingMoveTarget(false)
       window.getSelection()?.removeAllRanges()
     },
-    [textMoveSelection],
+    [textMoveSelection, transcription, editedTexts],
   )
 
-  const handleCleanedMoveTargetClick = useCallback(
+  const handleRawMoveTargetClick = useCallback(
     (targetSegmentId: string) => {
-      // TODO: Text move feature needs API support for moving text between segments
-      // For now, this feature is disabled until API endpoint is available
-      console.warn("Text move feature not yet implemented with API")
+      // Raw text is immutable (original transcription), so we don't support moving to raw column
+      // Instead, redirect to cleaned column move if the selection is from cleaned
+      if (textMoveSelection?.sourceColumn === "cleaned") {
+        handleCleanedMoveTargetClick(targetSegmentId)
+        return
+      }
+      // For raw-to-raw moves, just cancel (raw text shouldn't be edited)
       setTextMoveSelection(null)
       setIsSelectingMoveTarget(false)
       window.getSelection()?.removeAllRanges()
     },
-    [textMoveSelection],
+    [textMoveSelection, handleCleanedMoveTargetClick],
   )
 
   // Upload Handlers

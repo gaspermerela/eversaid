@@ -5,6 +5,7 @@ import type {
   AnalysisProfile,
   AnalysisResult,
   CleanedEntry,
+  EditedData,
   EntryDetails,
   Feedback,
   FeedbackPayload,
@@ -311,15 +312,15 @@ export async function getCleanedEntry(
 }
 
 /**
- * Save user edits to cleaned text
+ * Save user edits to cleaned text (words-first format)
  */
 export async function saveUserEdit(
   cleanupId: string,
-  editedText: string
+  editedData: EditedData
 ): Promise<{ data: CleanedEntry; rateLimitInfo: RateLimitInfo | null }> {
   return request<CleanedEntry>(`/api/cleaned-entries/${cleanupId}/user-edit`, {
     method: 'PUT',
-    body: { edited_text: editedText },
+    body: { edited_data: editedData },
   })
 }
 
