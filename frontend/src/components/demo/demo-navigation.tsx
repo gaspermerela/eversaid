@@ -34,7 +34,7 @@ export function DemoNavigation({ currentPage = "demo" }: DemoNavigationProps) {
           </g>
         </svg>
         <span className="font-[family-name:var(--font-comfortaa)] font-bold text-[22px] text-white tracking-[0.01em]">
-          eversaid
+          EverSaid
         </span>
       </Link>
 

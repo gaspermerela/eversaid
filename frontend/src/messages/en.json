@@ -70,7 +70,7 @@
     },
     "features": {
       "sectionLabel": "Features",
-      "title": "Why Choose eversaid?",
+      "title": "Why Choose EverSaid?",
       "subtitle": "Built for professionals who need accuracy and accountability",
       "verifyEveryWord": "Verify Every Word",
       "dataProtected": "Your Data, Protected",
@@ -160,7 +160,7 @@
       "referralNote": "Refer friends, earn free credits when they sign up."
     },
     "footer": {
-      "copyright": "© {year} eversaid",
+      "copyright": "© {year} EverSaid",
       "builtIn": "Built in Slovenia · Independent & bootstrapped",
       "privacy": "Privacy Policy",
       "terms": "Terms",
@@ -168,7 +168,7 @@
     }
   },
   "demo": {
-    "title": "Try eversaid",
+    "title": "Try EverSaid",
     "subtitle": "Upload audio or record directly. See the AI cleanup difference in seconds.",
     "upload": {
       "dropTitle": "Drop your audio file here",
@@ -341,12 +341,12 @@
     "modal": {
       "titleApi": "Join API Waitlist",
       "titleExtended": "Join the Waitlist",
-      "subtitleApi": "Get early access to integrate eversaid into your application",
+      "subtitleApi": "Get early access to integrate EverSaid into your application",
       "subtitleExtended": "Get full encryption, higher limits, and exclusive early access",
       "emailLabel": "Email Address",
       "emailPlaceholder": "you@example.com",
       "useCaseLabelApi": "What will you build?",
-      "useCaseLabelExtended": "How will you use eversaid?",
+      "useCaseLabelExtended": "How will you use EverSaid?",
       "useCasePlaceholderApi": "e.g., Voice journal app, meeting notes automation",
       "useCasePlaceholderExtended": "e.g., Therapy notes, interview transcription",
       "useCaseHelpApi": "Help us understand your integration needs",
@@ -398,7 +398,7 @@
   "apiDocs": {
     "coreApi": "Core API",
     "title": "API Documentation",
-    "subtitle": "Integrate eversaid's transcription, cleanup, and analysis capabilities into your application. RESTful API with JSON responses.",
+    "subtitle": "Integrate EverSaid's transcription, cleanup, and analysis capabilities into your application. RESTful API with JSON responses.",
     "sidebar": {
       "gettingStarted": "Getting Started",
       "quickStart": "Quick Start",
@@ -419,7 +419,7 @@
     },
     "quickStart": {
       "title": "Quick Start",
-      "description": "The eversaid API provides speech-to-text transcription with AI-powered cleanup and analysis. All responses are JSON.",
+      "description": "The EverSaid API provides speech-to-text transcription with AI-powered cleanup and analysis. All responses are JSON.",
       "baseUrl": "Base URL",
       "apiVersioning": "API Versioning",
       "versioningNote": "All endpoints are prefixed with",
@@ -563,7 +563,7 @@
     }
   },
   "metadata": {
-    "title": "eversaid | Smart transcription. AI listens. You decide.",
+    "title": "EverSaid | Smart transcription. AI listens. You decide.",
     "description": "AI-powered cleanup you can review, refine, and trust. See every edit. Verify against the original audio."
   }
 }

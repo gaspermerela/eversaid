@@ -70,7 +70,7 @@
     },
     "features": {
       "sectionLabel": "Funkcije",
-      "title": "Zakaj izbrati eversaid?",
+      "title": "Zakaj izbrati EverSaid?",
       "subtitle": "Narejeno za strokovnjake, ki potrebujejo natančnost in odgovornost",
       "verifyEveryWord": "Preverite vsako besedo",
       "dataProtected": "Vaši podatki, zaščiteni",
@@ -160,7 +160,7 @@
       "referralNote": "Povabite prijatelje, prislužite si brezplačne kredite ob njihovi registraciji."
     },
     "footer": {
-      "copyright": "© {year} eversaid",
+      "copyright": "© {year} EverSaid",
       "builtIn": "Narejeno v Sloveniji · Neodvisno & zagnano",
       "privacy": "Politika zasebnosti",
       "terms": "Pogoji",
@@ -168,7 +168,7 @@
     }
   },
   "demo": {
-    "title": "Preizkusi eversaid",
+    "title": "Preizkusi EverSaid",
     "subtitle": "Naložite zvok ali posnemite neposredno. Poglejte razliko AI čiščenja v sekundah.",
     "upload": {
       "dropTitle": "Spustite zvočno datoteko tukaj",
@@ -341,12 +341,12 @@
     "modal": {
       "titleApi": "Pridruži se API čakalni listi",
       "titleExtended": "Pridruži se čakalni listi",
-      "subtitleApi": "Pridobite zgodnji dostop za integracijo eversaid v vašo aplikacijo",
+      "subtitleApi": "Pridobite zgodnji dostop za integracijo EverSaid v vašo aplikacijo",
       "subtitleExtended": "Pridobite polno šifriranje, višje omejitve in ekskluziven zgodnji dostop",
       "emailLabel": "E-poštni naslov",
       "emailPlaceholder": "vi@primer.com",
       "useCaseLabelApi": "Kaj boste zgradili?",
-      "useCaseLabelExtended": "Kako boste uporabljali eversaid?",
+      "useCaseLabelExtended": "Kako boste uporabljali EverSaid?",
       "useCasePlaceholderApi": "npr. Glasovni dnevnik, avtomatizacija zapiskov sestankov",
       "useCasePlaceholderExtended": "npr. Terapevtski zapiski, transkripcija intervjujev",
       "useCaseHelpApi": "Pomagajte nam razumeti vaše integracijske potrebe",
@@ -398,7 +398,7 @@
   "apiDocs": {
     "coreApi": "Core API",
     "title": "API dokumentacija",
-    "subtitle": "Integrirajte eversaid transkripcijo, čiščenje in analizo v vašo aplikacijo. RESTful API z JSON odgovori.",
+    "subtitle": "Integrirajte EverSaid transkripcijo, čiščenje in analizo v vašo aplikacijo. RESTful API z JSON odgovori.",
     "sidebar": {
       "gettingStarted": "Začetek",
       "quickStart": "Hitri začetek",
@@ -419,7 +419,7 @@
     },
     "quickStart": {
       "title": "Hitri začetek",
-      "description": "Eversaid API zagotavlja govor-v-besedilo transkripcijo z AI čiščenjem in analizo. Vsi odgovori so JSON.",
+      "description": "EverSaid API zagotavlja govor-v-besedilo transkripcijo z AI čiščenjem in analizo. Vsi odgovori so JSON.",
       "baseUrl": "Osnovni URL",
       "apiVersioning": "Verzioniranje API",
       "versioningNote": "Vse končne točke imajo predpono",
@@ -563,7 +563,7 @@
     }
   },
   "metadata": {
-    "title": "eversaid | Pametna transkripcija. AI posluša. Vi odločate.",
+    "title": "EverSaid | Pametna transkripcija. AI posluša. Vi odločate.",
     "description": "AI čiščenje, ki ga lahko pregledate, izboljšate in mu zaupate. Vsaka sprememba vidna. Vsaka beseda preverljiva."
   }
 }

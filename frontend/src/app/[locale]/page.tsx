@@ -121,7 +121,7 @@ export default function HomePage() {
             </g>
           </svg>
           <span className="font-[family-name:var(--font-comfortaa)] font-bold text-[27px] text-white tracking-[0.01em]">
-            eversaid
+            EverSaid
           </span>
         </Link>
         <div className="hidden md:flex gap-10 items-center">
