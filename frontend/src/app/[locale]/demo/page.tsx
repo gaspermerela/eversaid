@@ -912,6 +912,7 @@ function DemoPageContent() {
         )}
       </main>
 
+      {/* TODO: Re-enable when text move feature is fully working
       {textMoveSelection && (
         <TextMoveToolbar
           selectedText={textMoveSelection.text}
@@ -920,6 +921,7 @@ function DemoPageContent() {
           onCancel={handleCancelTextMove}
         />
       )}
+      */}
 
       <WaitlistFlow
         state={waitlistState}
