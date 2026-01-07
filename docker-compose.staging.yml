@@ -1,30 +1,57 @@
-# Staging environment overrides
-# Usage: docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d
+# =============================================================================
+# Staging Environment - Self-contained
+# =============================================================================
 #
-# Differences from base:
-# - Uses pre-built images from ghcr.io (no local build)
-# - Different container names to avoid conflicts with production
-# - Staging ports: 4000 (frontend), 9001 (backend)
-# - No code volume mounts (uses baked-in code from image)
-# - No --reload flag (production mode)
+# Usage: docker compose -f docker-compose.staging.yml up -d
+#
+# This is a complete, self-contained configuration for staging.
+#
+# Ports: 4000 (frontend), 9001 (backend)
+# Images: ghcr.io/gaspermerela/eversaid-*:master
+# =============================================================================
 
 services:
   frontend:
     image: ghcr.io/gaspermerela/eversaid-frontend:${IMAGE_TAG:-master}
-    build: !reset null
     container_name: eversaid-frontend-staging
     ports:
       - "4000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
 
   backend:
     image: ghcr.io/gaspermerela/eversaid-backend:${IMAGE_TAG:-master}
-    build: !reset null
     container_name: eversaid-backend-staging
     command: uvicorn app.main:app --host 0.0.0.0 --port 8001
     ports:
       - "9001:8001"
+    labels:
+      logging: "loki"
+    environment:
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      # Core API
+      CORE_API_URL: ${CORE_API_URL:-http://host.docker.internal:8000}
+      SESSION_DURATION_DAYS: ${SESSION_DURATION_DAYS:-7}
+      # Transcribe rate limits
+      RATE_LIMIT_DAY: ${RATE_LIMIT_DAY:-20}
+      RATE_LIMIT_IP_DAY: ${RATE_LIMIT_IP_DAY:-20}
+      RATE_LIMIT_GLOBAL_DAY: ${RATE_LIMIT_GLOBAL_DAY:-1000}
+      # LLM/Analysis rate limits (10x transcribe)
+      RATE_LIMIT_LLM_DAY: ${RATE_LIMIT_LLM_DAY:-200}
+      RATE_LIMIT_LLM_IP_DAY: ${RATE_LIMIT_LLM_IP_DAY:-200}
+      RATE_LIMIT_LLM_GLOBAL_DAY: ${RATE_LIMIT_LLM_GLOBAL_DAY:-10000}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./data/demo.db}
     volumes:
-      - ./data:/app/data  # Only data volume, no code mount
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
 
 networks:
   default:
