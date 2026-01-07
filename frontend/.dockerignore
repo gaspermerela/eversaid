@@ -1,0 +1,63 @@
+# Dependencies (will be installed fresh in container)
+node_modules
+.pnp
+.pnp.*
+.yarn/*
+
+# Build outputs (will be regenerated)
+.next
+out
+build
+
+# Development files
+.git
+.gitignore
+.env*
+.env.local
+.env.development
+.env.test
+
+# Testing
+coverage
+test-results
+playwright-report
+blob-report
+playwright/.cache
+e2e
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Storybook
+storybook-static
+*storybook.log
+.storybook
+src/stories
+
+# Documentation
+*.md
+docs
+
+# IDE/Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Misc
+*.pem
+*.log
+npm-debug.log*
+yarn-debug.log*
+v0-utils
+screenshots
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
