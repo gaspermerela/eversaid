@@ -18,7 +18,6 @@ import type {
   TranscriptionWord,
   EditWord,
   EditedData,
-  DemoEntryData,
 } from "./types"
 import { ApiError } from "./types"
 import { parseAllSegmentTimes, findSegmentAtTime } from "@/lib/time-utils"
@@ -30,6 +29,8 @@ import {
   saveUserEdit,
   revertUserEdit,
   getRateLimits,
+  getDemoEntry,
+  getDemoAudioUrl,
 } from "./api"
 import { addEntryId, cacheEntry } from "@/lib/storage"
 import {
@@ -214,24 +215,20 @@ export interface UseTranscriptionReturn {
   uploadAudio: (file: File, speakerCount: number) => Promise<void>
 
   /**
-   * Load an existing entry by ID
-   * @param entryId - ID of the entry to load
+   * Load an existing entry by ID.
+   *
+   * Handles both real entries and demo entries:
+   * - Real entries (UUID format): Fetched from /api/entries/{id}
+   * - Demo entries ("demo-{locale}"): Fetched from /api/demo/entry
+   *
+   * Demo entries use the same EntryDetails format as real entries,
+   * allowing a unified code path. The difference is in edit storage:
+   * - Real entries: Edits saved to Core API
+   * - Demo entries: Edits saved to localStorage
+   *
+   * @param entryId - ID of the entry to load (e.g., "abc-123" or "demo-en")
    */
   loadEntry: (entryId: string) => Promise<void>
-
-  /**
-   * Load a demo entry from pre-computed data.
-   *
-   * Demo entries are special: they're NOT stored in Core API, but served from
-   * static files. Edits to demo entries are stored in localStorage instead of
-   * the API. This allows instant loading and avoids re-transcription costs.
-   *
-   * @param demoData - Pre-computed demo entry data from backend
-   * @param audioUrl - URL to demo audio file
-   * @see useDemoEntry - Hook that fetches demo data
-   * @see lib/demo-storage.ts - localStorage utilities for demo edits
-   */
-  loadDemoEntry: (demoData: DemoEntryData, audioUrl: string) => void
 
   /**
    * Whether current entry is a demo (not stored in Core API).
@@ -890,10 +887,13 @@ export function useTranscription(
   )
 
   /**
-   * Load an existing entry by ID
+   * Load an existing entry by ID.
    *
-   * The wrapper backend composes a full response including cleanup data,
-   * so we don't need to fetch cleanup separately.
+   * Handles both real entries and demo entries:
+   * - Real entries (UUID format): Fetched from /api/entries/{id}
+   * - Demo entries ("demo-{locale}"): Fetched from /api/demo/entry
+   *
+   * Both return the same EntryDetails format, allowing unified transformation.
    */
   const loadEntry = useCallback(
     async (entryIdToLoad: string): Promise<void> => {
@@ -910,10 +910,20 @@ export function useTranscription(
       setSegments([])
       setRevertedSegments(new Map())
 
+      // Detect demo entry by ID pattern
+      const isDemoEntry = entryIdToLoad.startsWith("demo-")
+      const locale = isDemoEntry ? entryIdToLoad.replace("demo-", "") : null
+
       try {
-        // Wrapper backend returns entry + primary_transcription + cleanup (composed)
-        console.log("[loadEntry] Fetching entry details...")
-        const { data: entryDetails } = await getEntry(entryIdToLoad)
+        // Fetch entry - same format for both real and demo
+        console.log("[loadEntry] Fetching entry details...", isDemoEntry ? "(demo)" : "(real)")
+        const { data: entryDetails } = isDemoEntry
+          ? await getDemoEntry(locale!)
+          : await getEntry(entryIdToLoad)
+
+        if (!entryDetails) {
+          throw new Error("Entry not found")
+        }
         console.log("[loadEntry] Entry details received:", entryDetails)
 
         // Check transcription status
@@ -993,6 +1003,22 @@ export function useTranscription(
           console.log("[loadEntry] Created fallback segment")
         }
 
+        // For demo entries: Merge localStorage edits with static data
+        // This ensures edits persist across page reloads
+        if (isDemoEntry && locale) {
+          const storedEdits = getDemoEdits(locale)
+          if (storedEdits && Object.keys(storedEdits.segments).length > 0) {
+            console.log("[loadEntry] Merging localStorage edits:", Object.keys(storedEdits.segments).length)
+            transformedSegments = transformedSegments.map((seg) => {
+              const edit = storedEdits.segments[seg.id]
+              if (edit) {
+                return { ...seg, cleanedText: edit.cleanedText }
+              }
+              return seg
+            })
+          }
+        }
+
         setSegments(transformedSegments)
 
         // Check for missing cleaned_segments when diarization detected multiple speakers
@@ -1011,7 +1037,8 @@ export function useTranscription(
         }
 
         setEntryId(entryIdToLoad)
-        setCleanupId(cleanupData.id)
+        // Demo entries don't have cleanup IDs (edits go to localStorage)
+        setCleanupId(isDemoEntry ? null : cleanupData.id)
         // Set all analyses for client-side caching by profile
         const allAnalyses = entryDetails.analyses || []
         setAnalyses(allAnalyses)
@@ -1021,8 +1048,14 @@ export function useTranscription(
         console.log("[loadEntry] Loaded analyses count:", allAnalyses.length, "Latest ID:", latestAnalysisId)
         // Set duration from API response (used as fallback when audio element can't determine duration)
         setDurationSeconds(entryDetails.duration_seconds || 0)
+
+        // Set demo state
+        setIsDemo(isDemoEntry)
+        setDemoLocale(locale)
+        setDemoAudioUrl(isDemoEntry && locale ? getDemoAudioUrl(locale) : null)
+
         setStatus("complete")
-        console.log("[loadEntry] Entry loaded successfully")
+        console.log("[loadEntry] Entry loaded successfully", isDemoEntry ? "(demo)" : "(real)")
       } catch (err) {
         console.error("[loadEntry] Error loading entry:", err)
         const errorMessage =
@@ -1030,95 +1063,6 @@ export function useTranscription(
         setError(errorMessage)
         setStatus("error")
       }
-    },
-    []
-  )
-
-  /**
-   * Load a demo entry from pre-computed data.
-   *
-   * Demo entries work differently from regular entries:
-   * - They're NOT stored in Core API (served from static files)
-   * - Edits are stored in localStorage instead of the API
-   * - They load instantly (no transcription wait)
-   *
-   * This approach allows users to explore the demo without:
-   * - Providing their own audio file
-   * - Waiting for transcription (pre-computed)
-   * - Using their rate limit quota
-   * - Re-transcribing on every visit
-   *
-   * On load, we merge any localStorage edits with the static demo data.
-   * This ensures edits persist across page reloads.
-   *
-   * @see useDemoEntry - Hook that fetches demo data from backend
-   * @see lib/demo-storage.ts - localStorage utilities for demo edits
-   */
-  const loadDemoEntry = useCallback(
-    (demoData: DemoEntryData, audioUrl: string): void => {
-      console.log("[loadDemoEntry] Loading demo entry:", demoData.locale)
-
-      // Clean up any existing polling
-      if (pollingRef.current) {
-        clearTimeout(pollingRef.current)
-        pollingRef.current = null
-      }
-
-      // Transform demo segments to UI format
-      // Demo data uses the same format as Core API, so we reuse transformApiSegments
-      // This gives us word-level timing for playback highlighting if present
-      const flatWords = demoData.rawSegments.flatMap((s) => s.words || [])
-      let transformedSegments = transformApiSegments(
-        demoData.rawSegments,
-        demoData.cleanedSegments,
-        flatWords
-      )
-
-      // Merge localStorage edits with static data
-      // This ensures edits persist across page reloads
-      const storedEdits = getDemoEdits(demoData.locale)
-      if (storedEdits && Object.keys(storedEdits.segments).length > 0) {
-        console.log("[loadDemoEntry] Merging localStorage edits:", Object.keys(storedEdits.segments).length)
-        transformedSegments = transformedSegments.map((seg) => {
-          const edit = storedEdits.segments[seg.id]
-          if (edit) {
-            return { ...seg, cleanedText: edit.cleanedText }
-          }
-          return seg
-        })
-      }
-
-      // Set all state
-      setSegments(transformedSegments)
-      setStatus("complete")
-      setError(null)
-      setUploadProgress(0)
-      setEntryId(`demo-${demoData.locale}`)
-      setCleanupId(null) // Demo entries don't have cleanup IDs
-      setAnalysisId(null)
-      // Transform demo analyses to match AnalysisResult format
-      setAnalyses(
-        demoData.analyses.map((a) => ({
-          id: `demo-analysis-${a.profileId}`,
-          cleaned_entry_id: `demo-${demoData.locale}`,
-          user_id: "demo",
-          profile_id: a.profileId,
-          result: a.result,
-          status: a.status as "completed",
-          model_name: "demo",
-          created_at: new Date().toISOString(),
-        }))
-      )
-      setDurationSeconds(demoData.durationSeconds)
-      setCleanedSegmentsWarning(null)
-      setRevertedSegments(new Map())
-
-      // Mark as demo entry
-      setIsDemo(true)
-      setDemoLocale(demoData.locale)
-      setDemoAudioUrl(audioUrl)
-
-      console.log("[loadDemoEntry] Demo entry loaded successfully")
     },
     []
   )
@@ -1195,7 +1139,6 @@ export function useTranscription(
     isSegmentReverted,
     uploadAudio,
     loadEntry,
-    loadDemoEntry,
     isDemo,
     demoLocale,
     getSegmentById,

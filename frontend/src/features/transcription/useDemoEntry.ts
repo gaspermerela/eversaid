@@ -18,13 +18,21 @@
  * - Mounted in the backend at runtime (not committed)
  * - Served via dedicated /api/demo endpoints
  *
+ * ## Unified Format
+ *
+ * Demo entries return the same EntryDetails format as real entries.
+ * This allows the frontend to use a single loadEntry() code path for both.
+ * The demo page only needs this hook for:
+ * - Checking if demo is available (for sidebar display)
+ * - Getting the demo entry ID format ("demo-{locale}")
+ *
  * @see /backend/app/routes/demo.py - Backend endpoints
  * @see /lib/demo-storage.ts - localStorage utilities for demo edits
  */
 
 import { useState, useEffect, useCallback } from "react"
 import { getDemoEntry, getDemoAudioUrl } from "./api"
-import type { DemoEntryData } from "./types"
+import type { EntryDetails } from "./types"
 import type { HistoryEntry } from "@/components/demo/types"
 import { formatDuration } from "@/lib/time-utils"
 
@@ -37,11 +45,13 @@ export interface UseDemoEntryOptions {
 
 export interface UseDemoEntryReturn {
   /** Demo entry data from backend, null if not available */
-  demoData: DemoEntryData | null
+  demoData: EntryDetails | null
   /** Audio URL for the demo entry */
   audioUrl: string | null
   /** Demo entry formatted for history sidebar */
   historyEntry: HistoryEntry | null
+  /** Whether demo data is available */
+  isAvailable: boolean
   /** Whether demo data is loading */
   isLoading: boolean
   /** Error message if fetch failed */
@@ -70,18 +80,18 @@ export function getDemoEntryId(locale: string): string {
  *
  * @example
  * ```tsx
- * const { demoData, historyEntry, isLoading } = useDemoEntry({
+ * const { historyEntry, isAvailable, isLoading } = useDemoEntry({
  *   locale: 'en',
  * })
  *
  * // historyEntry can be prepended to the entries list
- * // demoData can be passed to useTranscription.loadDemoEntry()
+ * // Use transcription.loadEntry("demo-en") to load the demo
  * ```
  */
 export function useDemoEntry(options: UseDemoEntryOptions): UseDemoEntryReturn {
   const { locale, enabled = true } = options
 
-  const [demoData, setDemoData] = useState<DemoEntryData | null>(null)
+  const [demoData, setDemoData] = useState<EntryDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -115,11 +125,11 @@ export function useDemoEntry(options: UseDemoEntryOptions): UseDemoEntryReturn {
   // Transform to HistoryEntry format for sidebar
   const historyEntry: HistoryEntry | null = demoData
     ? {
-        id: getDemoEntryId(locale),
-        filename: demoData.filename,
-        duration: formatDuration(demoData.durationSeconds),
+        id: demoData.id,
+        filename: demoData.original_filename,
+        duration: formatDuration(demoData.duration_seconds),
         status: "complete",
-        timestamp: new Date().toISOString(), // Demo is always "now"
+        timestamp: demoData.uploaded_at,
         isDemo: true,
       }
     : null
@@ -128,6 +138,7 @@ export function useDemoEntry(options: UseDemoEntryOptions): UseDemoEntryReturn {
     demoData,
     audioUrl,
     historyEntry,
+    isAvailable: demoData !== null,
     isLoading,
     error,
     refresh,

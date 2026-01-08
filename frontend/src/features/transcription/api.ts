@@ -5,7 +5,6 @@ import type {
   AnalysisProfile,
   AnalysisResult,
   CleanedEntry,
-  DemoEntryData,
   EditedData,
   EntryDetails,
   Feedback,
@@ -448,17 +447,21 @@ export async function joinWaitlist(
  * They provide instant access to a sample transcription without requiring
  * the user to upload their own file.
  *
+ * The demo endpoint returns the same EntryDetails format as /api/entries/{id},
+ * allowing the frontend to use a single loadEntry() code path for both real
+ * and demo entries.
+ *
  * Note: Returns null if demo data is not available (404) - this is expected
  * when demo files haven't been mounted in the backend.
  *
  * @param locale - Language code ('en' or 'sl')
- * @returns Demo entry data or null if not available
+ * @returns Entry details (same format as real entries) or null if not available
  */
 export async function getDemoEntry(
   locale: string
-): Promise<{ data: DemoEntryData | null; rateLimitInfo: RateLimitInfo | null }> {
+): Promise<{ data: EntryDetails | null; rateLimitInfo: RateLimitInfo | null }> {
   try {
-    return await request<DemoEntryData>(`/api/demo/entry?locale=${locale}`)
+    return await request<EntryDetails>(`/api/demo/entry?locale=${locale}`)
   } catch (error) {
     // Return null for 404 (demo not configured) - don't throw
     if (error instanceof ApiError && error.isNotFound) {

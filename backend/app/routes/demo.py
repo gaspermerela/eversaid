@@ -1,26 +1,17 @@
 """Demo content endpoints for serving pre-loaded demo entries.
 
-These endpoints serve static demo content (JSON + audio) from the filesystem.
-Demo files are NOT committed to the repository - they are mounted at runtime
-via Docker volumes or placed manually in the DEMO_DATA_PATH directory.
+Demo files contain raw Core API responses, stored by generate_demo_content.py.
+This endpoint transforms them to EntryDetails format - the same format used by
+/api/entries/{id} - so frontend can use the same loading logic for both.
 
 Expected file structure in DEMO_DATA_PATH:
-    en.json  - English demo transcription/analysis data
-    sl.json  - Slovenian demo transcription/analysis data
-    en.mp3   - English demo audio file
-    sl.mp3   - Slovenian demo audio file
-
-To create demo data:
-    1. Transcribe audio with Core API
-    2. Copy transcription.segments to rawSegments (includes words for highlighting)
-    3. Copy cleanup.cleaned_segments to cleanedSegments
-    4. Add analyses results
-
-The JSON files should match the DemoEntryData schema expected by the frontend.
+    {locale}.json  - Raw Core API responses (transcription + cleanup + analyses)
+    {locale}.mp3   - Demo audio file
 """
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
@@ -36,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# Response Models
+# Response Models (matching EntryDetails format from frontend types.ts)
 # =============================================================================
 
 
@@ -46,16 +37,12 @@ class TranscriptionWord(BaseModel):
     text: str
     start: float
     end: float
-    type: str = "word"  # 'word' | 'spacing' | 'audio_event'
+    type: str = "word"
     speaker_id: int | None = None
 
 
-class RawSegment(BaseModel):
-    """A raw transcription segment (matches ApiSegment on frontend).
-
-    Raw segments come directly from the transcription and include
-    word-level timing for playback highlighting.
-    """
+class ApiSegment(BaseModel):
+    """A raw transcription segment."""
 
     id: str
     start: float
@@ -66,11 +53,7 @@ class RawSegment(BaseModel):
 
 
 class CleanedSegment(BaseModel):
-    """A cleaned transcription segment (matches CleanedSegment on frontend).
-
-    Cleaned segments contain the LLM-cleaned text and may have
-    spellcheck information.
-    """
+    """A cleaned transcription segment."""
 
     id: str
     start: float
@@ -81,37 +64,173 @@ class CleanedSegment(BaseModel):
     spellcheck_errors: list[dict[str, Any]] | None = None
 
 
-class DemoAnalysis(BaseModel):
-    """Pre-computed analysis result."""
+class TranscriptionStatus(BaseModel):
+    """Transcription data matching frontend TranscriptionStatus type."""
 
-    profileId: str
-    status: str
-    result: dict[str, Any]
+    id: str
+    status: str = "completed"
+    transcribed_text: str | None = None
+    segments: list[ApiSegment] | None = None
+    words: list[TranscriptionWord] | None = None
+
+
+class CleanedEntry(BaseModel):
+    """Cleanup data matching frontend CleanedEntry type."""
+
+    id: str
+    voice_entry_id: str
+    transcription_id: str
+    user_id: str = "demo"
+    cleaned_text: str | None = None
+    status: str = "completed"
+    model_name: str = "demo"
+    is_primary: bool = True
+    created_at: str
+    cleaned_segments: list[CleanedSegment] | None = None
+    cleanup_data_edited: list[CleanedSegment] | None = None
+
+
+class AnalysisResult(BaseModel):
+    """Analysis result matching frontend AnalysisResult type."""
+
+    id: str
+    cleaned_entry_id: str
+    user_id: str = "demo"
+    profile_id: str
+    profile_label: str | None = None
+    result: dict[str, Any] | None = None
+    status: str = "completed"
+    model_name: str = "demo"
+    created_at: str
 
 
 class DemoEntryResponse(BaseModel):
-    """Full demo entry data returned to frontend.
+    """Full demo entry data matching EntryDetails format.
 
-    This schema matches what the frontend expects for displaying
-    a pre-loaded demo transcription with analysis.
-
-    The rawSegments and cleanedSegments use the same format as Core API,
-    allowing the frontend to reuse transformApiSegments() and get
-    word-level timing for playback highlighting.
+    This schema matches what /api/entries/{id} returns, allowing the frontend
+    to use the same loadEntry() function for both real and demo entries.
     """
 
-    locale: str
-    version: str
-    filename: str
-    durationSeconds: float
-    speakerCount: int
-    rawSegments: list[RawSegment]
-    cleanedSegments: list[CleanedSegment]
-    analyses: list[DemoAnalysis]
+    id: str
+    original_filename: str
+    saved_filename: str
+    duration_seconds: float
+    entry_type: str = "demo"
+    uploaded_at: str
+    primary_transcription: TranscriptionStatus | None = None
+    cleanup: CleanedEntry | None = None
+    analyses: list[AnalysisResult] | None = None
 
 
 # =============================================================================
-# Helper Functions
+# Transformation (raw Core API → EntryDetails format)
+# =============================================================================
+
+
+def transform_raw_to_entry_details(data: dict, locale: str) -> dict:
+    """Transform raw Core API responses to EntryDetails format.
+
+    This produces the same structure as GET /api/entries/{id}, allowing
+    the frontend to use a single code path for both real and demo entries.
+    """
+    transcription = data["transcription"]
+    cleanup = data["cleanup"]
+    analyses = data["analyses"]
+
+    now = datetime.now(timezone.utc).isoformat()
+    demo_id = f"demo-{locale}"
+    transcription_id = f"demo-transcription-{locale}"
+    cleanup_id = f"demo-cleanup-{locale}"
+
+    segments = transcription.get("segments", [])
+    words = transcription.get("words", [])
+
+    # Transform raw segments with word-level timing
+    api_segments = []
+    for i, seg in enumerate(segments):
+        api_seg = {
+            "id": f"seg-{i}",
+            "start": seg["start"],
+            "end": seg["end"],
+            "text": seg["text"],
+            "speaker": seg.get("speaker"),
+        }
+        # Distribute words to segments by time range
+        seg_words = [w for w in words if seg["start"] <= w.get("start", 0) < seg["end"]]
+        if seg_words:
+            api_seg["words"] = [
+                {"text": w["text"], "start": w["start"], "end": w["end"],
+                 "type": w.get("type", "word"), "speaker_id": w.get("speaker")}
+                for w in seg_words
+            ]
+        api_segments.append(api_seg)
+
+    # Transform cleaned segments
+    cleaned_segments = [
+        {
+            "id": f"clean-{i}",
+            "start": api_segments[i]["start"] if i < len(api_segments) else 0,
+            "end": api_segments[i]["end"] if i < len(api_segments) else 0,
+            "text": seg["text"],
+            "speaker": seg.get("speaker"),
+            "raw_segment_id": f"seg-{i}",
+        }
+        for i, seg in enumerate(cleanup.get("cleaned_segments", []))
+    ]
+
+    # Flatten words for the transcription response
+    flat_words = [
+        {"text": w["text"], "start": w["start"], "end": w["end"],
+         "type": w.get("type", "word"), "speaker_id": w.get("speaker")}
+        for w in words
+    ]
+
+    return {
+        "id": demo_id,
+        "original_filename": f"demo-{locale}.mp3",
+        "saved_filename": f"demo-{locale}.mp3",
+        "duration_seconds": transcription.get("duration_seconds", 0),
+        "entry_type": "demo",
+        "uploaded_at": now,
+        "primary_transcription": {
+            "id": transcription_id,
+            "status": "completed",
+            "transcribed_text": transcription.get("transcribed_text"),
+            "segments": api_segments,
+            "words": flat_words,
+        },
+        "cleanup": {
+            "id": cleanup_id,
+            "voice_entry_id": demo_id,
+            "transcription_id": transcription_id,
+            "user_id": "demo",
+            "cleaned_text": cleanup.get("cleaned_text"),
+            "status": "completed",
+            "model_name": "demo",
+            "is_primary": True,
+            "created_at": now,
+            "cleaned_segments": cleaned_segments,
+            "cleanup_data_edited": None,
+        },
+        "analyses": [
+            {
+                "id": f"demo-analysis-{a['profile_id']}",
+                "cleaned_entry_id": cleanup_id,
+                "user_id": "demo",
+                "profile_id": a["profile_id"],
+                "profile_label": a.get("profile_label"),
+                "result": a.get("result", {}),
+                "status": "completed",
+                "model_name": "demo",
+                "created_at": now,
+            }
+            for a in analyses
+        ],
+    }
+
+
+# =============================================================================
+# Endpoints
 # =============================================================================
 
 
@@ -133,15 +252,9 @@ def get_demo_file_path(
     """
     if locale not in ("en", "sl"):
         raise HTTPException(status_code=400, detail="Invalid locale. Use 'en' or 'sl'.")
-
     base_path = Path(settings.DEMO_DATA_PATH)
     extension = "json" if file_type == "json" else "mp3"
     return base_path / f"{locale}.{extension}"
-
-
-# =============================================================================
-# Endpoints
-# =============================================================================
 
 
 @router.get("/entry", response_model=DemoEntryResponse)
@@ -151,15 +264,15 @@ async def get_demo_entry(
 ):
     """Get demo entry data for a specific locale.
 
-    Returns pre-computed transcription and analysis data for the demo.
-    The frontend uses this to display a sample entry in the history sidebar
-    and load it when the user clicks on it.
+    Returns data in EntryDetails format - the same format as /api/entries/{id}.
+    This allows the frontend to use the same loadEntry() function for both
+    real and demo entries.
 
     Args:
         locale: Language code ('en' or 'sl'). Defaults to 'en'.
 
     Returns:
-        DemoEntryResponse with all demo data
+        DemoEntryResponse matching EntryDetails structure
 
     Raises:
         404: If demo data file is not found (demo not configured)
@@ -171,26 +284,20 @@ async def get_demo_entry(
         logger.warning(f"Demo data not found at {json_path}")
         raise HTTPException(
             status_code=404,
-            detail=f"Demo data not available for locale '{locale}'. "
-            "Demo files need to be mounted in the data/demo directory.",
+            detail=f"Demo data not available for locale '{locale}'.",
         )
 
     try:
         with open(json_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        return DemoEntryResponse(**data)
+            raw_data = json.load(f)
+        demo_data = transform_raw_to_entry_details(raw_data, locale)
+        return DemoEntryResponse(**demo_data)
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON in demo file {json_path}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Demo data file is corrupted.",
-        )
-    except Exception as e:
-        logger.error(f"Error reading demo file {json_path}: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail="Failed to load demo data.",
-        )
+        raise HTTPException(status_code=500, detail="Demo data file is corrupted.")
+    except KeyError as e:
+        logger.error(f"Missing key in demo file {json_path}: {e}")
+        raise HTTPException(status_code=500, detail="Demo data file has invalid structure.")
 
 
 @router.get("/audio/{locale}")
@@ -219,8 +326,7 @@ async def get_demo_audio(
         logger.warning(f"Demo audio not found at {audio_path}")
         raise HTTPException(
             status_code=404,
-            detail=f"Demo audio not available for locale '{locale}'. "
-            "Demo files need to be mounted in the data/demo directory.",
+            detail=f"Demo audio not available for locale '{locale}'.",
         )
 
     return FileResponse(

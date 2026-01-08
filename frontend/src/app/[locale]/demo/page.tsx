@@ -209,17 +209,11 @@ function DemoPageContent() {
       return
     }
     if (entryId && !transcription.entryId && transcription.status === 'idle') {
-      // Handle demo entries from URL (e.g., ?entry=demo-en)
-      if (entryId.startsWith('demo-') && demoEntryHook.demoData && demoEntryHook.audioUrl) {
-        transcription.loadDemoEntry(demoEntryHook.demoData, demoEntryHook.audioUrl)
-      } else if (!entryId.startsWith('demo-')) {
-        // Regular entries loaded from Core API
-        transcription.loadEntry(entryId)
-      }
-      // If it's a demo entry but demoData isn't ready yet, do nothing -
-      // the useDemoEntry hook will trigger another render when data loads
+      // loadEntry handles both demo and real entries
+      // Demo entries detected by "demo-*" ID pattern
+      transcription.loadEntry(entryId)
     }
-  }, [searchParams, transcription.entryId, transcription.status, transcription.loadEntry, transcription.loadDemoEntry, demoEntryHook.demoData, demoEntryHook.audioUrl])
+  }, [searchParams, transcription.entryId, transcription.status, transcription.loadEntry])
 
   // Update URL when entry is loaded (creates browser history entry)
   // Use a ref to track if we've already pushed this entry to avoid loops
@@ -693,14 +687,9 @@ function DemoPageContent() {
   }, [audioPlayer])
 
   const handleEntrySelect = useCallback(async (entryId: string) => {
-    // Check if this is a demo entry (IDs start with "demo-")
-    if (entryId.startsWith("demo-") && demoEntryHook.demoData && demoEntryHook.audioUrl) {
-      // Demo entries are loaded from pre-computed data, not Core API
-      transcription.loadDemoEntry(demoEntryHook.demoData, demoEntryHook.audioUrl)
-      return
-    }
-
     try {
+      // loadEntry handles both demo and real entries
+      // Demo entries detected by "demo-*" ID pattern
       await transcription.loadEntry(entryId)
       // Note: feedbackHook auto-loads existing feedback when entryId changes via its useEffect
       // Note: analysisHook auto-resets when transcription.analysisId changes via its useEffect
@@ -710,7 +699,7 @@ function DemoPageContent() {
         await entriesHook.refresh()
       }
     }
-  }, [transcription, entriesHook, demoEntryHook])
+  }, [transcription, entriesHook])
 
   // Handle entry deletion
   const handleDeleteEntry = useCallback(async (entryId: string) => {
