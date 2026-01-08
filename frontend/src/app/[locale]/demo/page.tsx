@@ -16,7 +16,7 @@ import { ExpandableCard } from "@/components/demo/expandable-card"
 import type { Segment, SpellcheckError, TextMoveSelection } from "@/components/demo/types"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 import { useWaitlist } from "@/features/transcription/useWaitlist"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 import { useSearchParams } from "next/navigation"
 import { useRouter } from "@/i18n/routing"
 import { motion, AnimatePresence } from "@/components/motion"
@@ -26,6 +26,7 @@ import { ErrorDisplay } from "@/components/demo/error-display"
 import { RateLimitModal } from "@/components/demo/rate-limit-modal"
 import { RecordingModal } from "@/components/demo/recording-modal"
 import { useTranscription } from "@/features/transcription/useTranscription"
+import { useDemoEntry, getDemoEntryId } from "@/features/transcription/useDemoEntry"
 import { useVoiceRecorder } from "@/features/transcription/useVoiceRecorder"
 import { useRateLimits } from "@/features/transcription/useRateLimits"
 import { ApiError } from "@/features/transcription/types"
@@ -85,6 +86,12 @@ function DemoPageContent() {
   // Translation hook
   const t = useTranslations()
 
+  // Locale hook for demo entry
+  const locale = useLocale()
+
+  // Demo entry hook - fetches pre-loaded demo data based on locale
+  const demoEntryHook = useDemoEntry({ locale })
+
   // Feedback hook
   const feedbackHook = useFeedback({
     entryId: transcription.entryId ?? '',
@@ -125,10 +132,19 @@ function DemoPageContent() {
   const [sessionReady, setSessionReady] = useState(false)
 
   // Entry history hook (autoFetch disabled - we fetch after session is ready)
-  const entriesHook = useEntries({ autoFetch: false })
+  // demoEntry is prepended to the list when available
+  const entriesHook = useEntries({
+    autoFetch: false,
+    demoEntry: demoEntryHook.historyEntry,
+  })
 
   // Audio playback hook
-  const audioUrl = transcription.entryId ? getEntryAudioUrl(transcription.entryId) : null
+  // Use demo audio URL for demo entries, otherwise use the entry audio URL
+  const audioUrl = transcription.isDemo
+    ? demoEntryHook.audioUrl
+    : transcription.entryId
+      ? getEntryAudioUrl(transcription.entryId)
+      : null
 
   const audioPlayer = useAudioPlayer({
     segments: transcription.segments,
@@ -193,9 +209,17 @@ function DemoPageContent() {
       return
     }
     if (entryId && !transcription.entryId && transcription.status === 'idle') {
-      transcription.loadEntry(entryId)
+      // Handle demo entries from URL (e.g., ?entry=demo-en)
+      if (entryId.startsWith('demo-') && demoEntryHook.demoData && demoEntryHook.audioUrl) {
+        transcription.loadDemoEntry(demoEntryHook.demoData, demoEntryHook.audioUrl)
+      } else if (!entryId.startsWith('demo-')) {
+        // Regular entries loaded from Core API
+        transcription.loadEntry(entryId)
+      }
+      // If it's a demo entry but demoData isn't ready yet, do nothing -
+      // the useDemoEntry hook will trigger another render when data loads
     }
-  }, [searchParams, transcription.entryId, transcription.status, transcription.loadEntry])
+  }, [searchParams, transcription.entryId, transcription.status, transcription.loadEntry, transcription.loadDemoEntry, demoEntryHook.demoData, demoEntryHook.audioUrl])
 
   // Update URL when entry is loaded (creates browser history entry)
   // Use a ref to track if we've already pushed this entry to avoid loops
@@ -669,6 +693,13 @@ function DemoPageContent() {
   }, [audioPlayer])
 
   const handleEntrySelect = useCallback(async (entryId: string) => {
+    // Check if this is a demo entry (IDs start with "demo-")
+    if (entryId.startsWith("demo-") && demoEntryHook.demoData && demoEntryHook.audioUrl) {
+      // Demo entries are loaded from pre-computed data, not Core API
+      transcription.loadDemoEntry(demoEntryHook.demoData, demoEntryHook.audioUrl)
+      return
+    }
+
     try {
       await transcription.loadEntry(entryId)
       // Note: feedbackHook auto-loads existing feedback when entryId changes via its useEffect
@@ -679,7 +710,7 @@ function DemoPageContent() {
         await entriesHook.refresh()
       }
     }
-  }, [transcription, entriesHook])
+  }, [transcription, entriesHook, demoEntryHook])
 
   // Handle entry deletion
   const handleDeleteEntry = useCallback(async (entryId: string) => {

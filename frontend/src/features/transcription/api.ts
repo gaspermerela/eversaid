@@ -5,6 +5,7 @@ import type {
   AnalysisProfile,
   AnalysisResult,
   CleanedEntry,
+  DemoEntryData,
   EditedData,
   EntryDetails,
   Feedback,
@@ -434,4 +435,48 @@ export async function joinWaitlist(
     method: 'POST',
     body: payload as unknown as Record<string, unknown>,
   })
+}
+
+// =============================================================================
+// Demo Entry Endpoints
+// =============================================================================
+
+/**
+ * Get pre-loaded demo entry data for a specific locale.
+ *
+ * Demo entries are served from static files on the backend (not Core API).
+ * They provide instant access to a sample transcription without requiring
+ * the user to upload their own file.
+ *
+ * Note: Returns null if demo data is not available (404) - this is expected
+ * when demo files haven't been mounted in the backend.
+ *
+ * @param locale - Language code ('en' or 'sl')
+ * @returns Demo entry data or null if not available
+ */
+export async function getDemoEntry(
+  locale: string
+): Promise<{ data: DemoEntryData | null; rateLimitInfo: RateLimitInfo | null }> {
+  try {
+    return await request<DemoEntryData>(`/api/demo/entry?locale=${locale}`)
+  } catch (error) {
+    // Return null for 404 (demo not configured) - don't throw
+    if (error instanceof ApiError && error.isNotFound) {
+      return { data: null, rateLimitInfo: null }
+    }
+    throw error
+  }
+}
+
+/**
+ * Get the audio URL for a demo entry.
+ *
+ * Unlike regular entries (which use Core API), demo audio is served directly
+ * from the backend's static file storage.
+ *
+ * @param locale - Language code ('en' or 'sl')
+ * @returns URL to stream demo audio
+ */
+export function getDemoAudioUrl(locale: string): string {
+  return `${API_BASE_URL}/api/demo/audio/${locale}`
 }

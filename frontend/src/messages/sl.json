@@ -285,7 +285,8 @@
       "title": "Vaše transkripcije",
       "empty": "Še ni transkripcij",
       "emptySubtitle": "Naložite zvok za začetek",
-      "retention": "Transkripcije se hranijo 7 dni"
+      "retention": "Transkripcije se hranijo 7 dni",
+      "sampleBadge": "Primer"
     },
     "rateLimit": {
       "remaining": "{count, plural, one {# preostane} two {# preostaneta} few {# preostanejo} other {# preostane}}"

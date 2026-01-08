@@ -24,6 +24,12 @@ export interface HistoryEntry {
   duration: string
   status: "complete" | "processing" | "error"
   timestamp: string // Added timestamp field for history entries
+  /**
+   * True if this is a pre-loaded demo entry.
+   * Demo entries are special: they're served from static files (not Core API),
+   * edits are stored in localStorage, and they cannot be deleted.
+   */
+  isDemo?: boolean
 }
 
 export interface SegmentEditState {

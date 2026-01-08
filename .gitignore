@@ -77,6 +77,11 @@ next-env.d.ts
 *.sqlite3
 data/
 
+# Demo content files (mounted at runtime, not committed)
+# See plan: /Users/gaspermerela/.claude/plans/nifty-singing-melody.md
+demo-data/
+backend/data/demo/
+
 # Secrets
 *.pem
 *.key

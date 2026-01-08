@@ -16,6 +16,15 @@ export interface UseEntriesOptions {
   autoFetch?: boolean
   /** Limit per page (default: 10) */
   limit?: number
+  /**
+   * Demo entry to prepend to the list.
+   *
+   * When provided, this entry appears at the top of the history sidebar.
+   * It's visually distinguished with isDemo: true and cannot be deleted.
+   *
+   * @see useDemoEntry for fetching demo data
+   */
+  demoEntry?: HistoryEntry | null
 }
 
 export interface UseEntriesReturn {
@@ -87,7 +96,7 @@ function transformEntry(entry: EntrySummary): HistoryEntry {
  * ```
  */
 export function useEntries(options: UseEntriesOptions = {}): UseEntriesReturn {
-  const { autoFetch = true, limit = 10 } = options
+  const { autoFetch = true, limit = 10, demoEntry } = options
 
   const [rawEntries, setRawEntries] = useState<EntrySummary[]>([])
   const [total, setTotal] = useState(0)
@@ -114,6 +123,12 @@ export function useEntries(options: UseEntriesOptions = {}): UseEntriesReturn {
   }, [limit])
 
   const deleteEntry = useCallback(async (entryId: string): Promise<boolean> => {
+    // Prevent deletion of demo entries
+    if (demoEntry && entryId === demoEntry.id) {
+      console.warn("Cannot delete demo entry")
+      return false
+    }
+
     setDeletingId(entryId)
 
     // Optimistic update - remove from list immediately
@@ -135,7 +150,7 @@ export function useEntries(options: UseEntriesOptions = {}): UseEntriesReturn {
     } finally {
       setDeletingId(null)
     }
-  }, [rawEntries])
+  }, [rawEntries, demoEntry])
 
   // Auto-fetch on mount
   useEffect(() => {
@@ -144,8 +159,13 @@ export function useEntries(options: UseEntriesOptions = {}): UseEntriesReturn {
     }
   }, [autoFetch, refresh])
 
-  // Transform entries for UI
-  const entries = rawEntries.map(transformEntry)
+  // Transform entries for UI, prepending demo entry if available
+  const entries = [
+    // Demo entry always comes first (if available)
+    ...(demoEntry ? [demoEntry] : []),
+    // Then user's entries
+    ...rawEntries.map(transformEntry),
+  ]
 
   return {
     entries,

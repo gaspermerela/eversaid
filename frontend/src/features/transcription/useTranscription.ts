@@ -18,6 +18,7 @@ import type {
   TranscriptionWord,
   EditWord,
   EditedData,
+  DemoEntryData,
 } from "./types"
 import { ApiError } from "./types"
 import { parseAllSegmentTimes, findSegmentAtTime } from "@/lib/time-utils"
@@ -31,6 +32,12 @@ import {
   getRateLimits,
 } from "./api"
 import { addEntryId, cacheEntry } from "@/lib/storage"
+import {
+  getDemoEdits,
+  saveDemoEdit,
+  saveDemoEdits,
+  clearDemoSegmentEdit,
+} from "@/lib/demo-storage"
 
 /**
  * Mock segments data for development and testing
@@ -212,6 +219,32 @@ export interface UseTranscriptionReturn {
    */
   loadEntry: (entryId: string) => Promise<void>
 
+  /**
+   * Load a demo entry from pre-computed data.
+   *
+   * Demo entries are special: they're NOT stored in Core API, but served from
+   * static files. Edits to demo entries are stored in localStorage instead of
+   * the API. This allows instant loading and avoids re-transcription costs.
+   *
+   * @param demoData - Pre-computed demo entry data from backend
+   * @param audioUrl - URL to demo audio file
+   * @see useDemoEntry - Hook that fetches demo data
+   * @see lib/demo-storage.ts - localStorage utilities for demo edits
+   */
+  loadDemoEntry: (demoData: DemoEntryData, audioUrl: string) => void
+
+  /**
+   * Whether current entry is a demo (not stored in Core API).
+   * Demo entries have different edit behavior (localStorage instead of API).
+   */
+  isDemo: boolean
+
+  /**
+   * Locale of the current demo entry (null if not a demo).
+   * Used for keying localStorage edits.
+   */
+  demoLocale: string | null
+
   // Utilities
   /**
    * Get a segment by ID
@@ -348,6 +381,12 @@ export function useTranscription(
   const [durationSeconds, setDurationSeconds] = useState<number>(0)
   const [cleanedSegmentsWarning, setCleanedSegmentsWarning] = useState<string | null>(null)
 
+  // Demo entry state
+  // Demo entries are NOT stored in Core API - they use static files and localStorage for edits
+  const [isDemo, setIsDemo] = useState<boolean>(false)
+  const [demoLocale, setDemoLocale] = useState<string | null>(null)
+  const [demoAudioUrl, setDemoAudioUrl] = useState<string | null>(null)
+
   // Track reverted segments for undo functionality
   const [revertedSegments, setRevertedSegments] = useState<Map<string, string>>(
     new Map()
@@ -382,6 +421,9 @@ export function useTranscription(
   /**
    * Update the cleaned text of a segment (calls API in non-mock mode)
    * Sends ALL segments to API on every save (words-first format)
+   *
+   * For demo entries: Saves to localStorage instead of API (instant, no rate limit).
+   * @see lib/demo-storage.ts for why demo entries use localStorage
    */
   const updateSegmentCleanedText = useCallback(
     async (segmentId: string, text: string) => {
@@ -403,6 +445,12 @@ export function useTranscription(
         newMap.delete(segmentId)
         return newMap
       })
+
+      // Demo entries: Save to localStorage instead of API
+      if (isDemo && demoLocale) {
+        saveDemoEdit(demoLocale, segmentId, text)
+        return
+      }
 
       // Call API in non-mock mode - send ALL segments
       if (!mockMode && cleanupId) {
@@ -430,13 +478,16 @@ export function useTranscription(
         }
       }
     },
-    [mockMode, cleanupId, segmentsWithTime, segmentsToEditWords]
+    [mockMode, cleanupId, segmentsWithTime, segmentsToEditWords, isDemo, demoLocale]
   )
 
   /**
    * Revert a segment's cleaned text back to raw text
    * Returns the original cleaned text for potential undo
    * Now uses PUT endpoint to save all segments (preserves other edits)
+   *
+   * For demo entries: Clears the localStorage edit for this segment.
+   * The original cleaned text will be restored from static JSON on next load.
    */
   const revertSegmentToRaw = useCallback(
     async (segmentId: string): Promise<string | undefined> => {
@@ -462,6 +513,14 @@ export function useTranscription(
         )
       )
 
+      // Demo entries: Clear localStorage edit, save raw text as the new edit
+      if (isDemo && demoLocale) {
+        // For revert, we save the raw text as the new cleaned text
+        // This persists the "reverted" state across page reloads
+        saveDemoEdit(demoLocale, segmentId, segment.rawText)
+        return originalCleanedText
+      }
+
       // Call API in non-mock mode - save ALL segments
       if (!mockMode && cleanupId) {
         try {
@@ -476,12 +535,14 @@ export function useTranscription(
 
       return originalCleanedText
     },
-    [segmentsWithTime, mockMode, cleanupId, segmentsToEditWords]
+    [segmentsWithTime, mockMode, cleanupId, segmentsToEditWords, isDemo, demoLocale]
   )
 
   /**
    * Undo a revert by restoring the original cleaned text
    * Now also saves to API
+   *
+   * For demo entries: Saves to localStorage.
    */
   const undoRevert = useCallback(
     async (segmentId: string, originalCleanedText: string) => {
@@ -503,6 +564,12 @@ export function useTranscription(
         return newMap
       })
 
+      // Demo entries: Save to localStorage
+      if (isDemo && demoLocale) {
+        saveDemoEdit(demoLocale, segmentId, originalCleanedText)
+        return
+      }
+
       // Call API in non-mock mode - save ALL segments
       if (!mockMode && cleanupId) {
         try {
@@ -515,7 +582,7 @@ export function useTranscription(
         }
       }
     },
-    [segmentsWithTime, mockMode, cleanupId, segmentsToEditWords]
+    [segmentsWithTime, mockMode, cleanupId, segmentsToEditWords, isDemo, demoLocale]
   )
 
   /**
@@ -531,6 +598,8 @@ export function useTranscription(
   /**
    * Update multiple segments at once (for text move feature)
    * Accepts a Map of segmentId -> newText and saves all with single API call
+   *
+   * For demo entries: Saves to localStorage.
    */
   const updateMultipleSegments = useCallback(
     async (updates: Map<string, string>) => {
@@ -557,6 +626,12 @@ export function useTranscription(
         return newMap
       })
 
+      // Demo entries: Save all edits to localStorage
+      if (isDemo && demoLocale) {
+        saveDemoEdits(demoLocale, updates)
+        return
+      }
+
       // Call API in non-mock mode - send ALL segments
       if (!mockMode && cleanupId) {
         try {
@@ -569,7 +644,7 @@ export function useTranscription(
         }
       }
     },
-    [mockMode, cleanupId, segmentsWithTime, segmentsToEditWords]
+    [mockMode, cleanupId, segmentsWithTime, segmentsToEditWords, isDemo, demoLocale]
   )
 
   /**
@@ -960,6 +1035,95 @@ export function useTranscription(
   )
 
   /**
+   * Load a demo entry from pre-computed data.
+   *
+   * Demo entries work differently from regular entries:
+   * - They're NOT stored in Core API (served from static files)
+   * - Edits are stored in localStorage instead of the API
+   * - They load instantly (no transcription wait)
+   *
+   * This approach allows users to explore the demo without:
+   * - Providing their own audio file
+   * - Waiting for transcription (pre-computed)
+   * - Using their rate limit quota
+   * - Re-transcribing on every visit
+   *
+   * On load, we merge any localStorage edits with the static demo data.
+   * This ensures edits persist across page reloads.
+   *
+   * @see useDemoEntry - Hook that fetches demo data from backend
+   * @see lib/demo-storage.ts - localStorage utilities for demo edits
+   */
+  const loadDemoEntry = useCallback(
+    (demoData: DemoEntryData, audioUrl: string): void => {
+      console.log("[loadDemoEntry] Loading demo entry:", demoData.locale)
+
+      // Clean up any existing polling
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current)
+        pollingRef.current = null
+      }
+
+      // Transform demo segments to UI format
+      // Demo data uses the same format as Core API, so we reuse transformApiSegments
+      // This gives us word-level timing for playback highlighting if present
+      const flatWords = demoData.rawSegments.flatMap((s) => s.words || [])
+      let transformedSegments = transformApiSegments(
+        demoData.rawSegments,
+        demoData.cleanedSegments,
+        flatWords
+      )
+
+      // Merge localStorage edits with static data
+      // This ensures edits persist across page reloads
+      const storedEdits = getDemoEdits(demoData.locale)
+      if (storedEdits && Object.keys(storedEdits.segments).length > 0) {
+        console.log("[loadDemoEntry] Merging localStorage edits:", Object.keys(storedEdits.segments).length)
+        transformedSegments = transformedSegments.map((seg) => {
+          const edit = storedEdits.segments[seg.id]
+          if (edit) {
+            return { ...seg, cleanedText: edit.cleanedText }
+          }
+          return seg
+        })
+      }
+
+      // Set all state
+      setSegments(transformedSegments)
+      setStatus("complete")
+      setError(null)
+      setUploadProgress(0)
+      setEntryId(`demo-${demoData.locale}`)
+      setCleanupId(null) // Demo entries don't have cleanup IDs
+      setAnalysisId(null)
+      // Transform demo analyses to match AnalysisResult format
+      setAnalyses(
+        demoData.analyses.map((a) => ({
+          id: `demo-analysis-${a.profileId}`,
+          cleaned_entry_id: `demo-${demoData.locale}`,
+          user_id: "demo",
+          profile_id: a.profileId,
+          result: a.result,
+          status: a.status as "completed",
+          model_name: "demo",
+          created_at: new Date().toISOString(),
+        }))
+      )
+      setDurationSeconds(demoData.durationSeconds)
+      setCleanedSegmentsWarning(null)
+      setRevertedSegments(new Map())
+
+      // Mark as demo entry
+      setIsDemo(true)
+      setDemoLocale(demoData.locale)
+      setDemoAudioUrl(audioUrl)
+
+      console.log("[loadDemoEntry] Demo entry loaded successfully")
+    },
+    []
+  )
+
+  /**
    * Reset to initial state
    */
   const reset = useCallback(() => {
@@ -981,6 +1145,10 @@ export function useTranscription(
     setDurationSeconds(0)
     setRevertedSegments(new Map())
     setCleanedSegmentsWarning(null)
+    // Reset demo state
+    setIsDemo(false)
+    setDemoLocale(null)
+    setDemoAudioUrl(null)
   }, [initialSegments, mockMode])
 
   /**
@@ -1027,6 +1195,9 @@ export function useTranscription(
     isSegmentReverted,
     uploadAudio,
     loadEntry,
+    loadDemoEntry,
+    isDemo,
+    demoLocale,
     getSegmentById,
     getSegmentAtTime,
     reset,

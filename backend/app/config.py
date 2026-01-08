@@ -24,6 +24,10 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "sqlite:///./data/demo.db"
 
+    # Demo content path (for pre-loaded demo entries)
+    # Files expected: {DEMO_DATA_PATH}/en.json, sl.json, en.mp3, sl.mp3
+    DEMO_DATA_PATH: str = "./data/demo"
+
     # CORS origins (comma-separated list)
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
 

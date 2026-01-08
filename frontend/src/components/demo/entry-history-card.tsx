@@ -83,7 +83,14 @@ export function EntryHistoryCard({
                     <Upload className="w-[18px] h-[18px] stroke-primary-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold text-foreground truncate">{entry.filename}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[13px] font-semibold text-foreground truncate">{entry.filename}</span>
+                      {entry.isDemo && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">
+                          {t('sampleBadge')}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[11px] text-muted-foreground flex gap-2">
                       <span>{entry.duration}</span>
                       <span>·</span>
@@ -97,7 +104,8 @@ export function EntryHistoryCard({
                       <div className="w-5 h-5 bg-emerald-100 rounded-full flex items-center justify-center">
                         <Check className="w-3 h-3 stroke-emerald-600" />
                       </div>
-                      {onDelete && (
+                      {/* Hide delete button for demo entries - they can't be deleted */}
+                      {onDelete && !entry.isDemo && (
                         <button
                           onClick={(e) => handleDeleteClick(e, entry.id)}
                           className="w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-100 transition-all"
@@ -107,7 +115,7 @@ export function EntryHistoryCard({
                         </button>
                       )}
                     </div>
-                  ) : onDelete ? (
+                  ) : onDelete && !entry.isDemo ? (
                     <button
                       onClick={(e) => handleDeleteClick(e, entry.id)}
                       className="w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-100 transition-all"

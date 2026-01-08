@@ -285,7 +285,8 @@
       "title": "Your Transcriptions",
       "empty": "No transcriptions yet",
       "emptySubtitle": "Upload audio to get started",
-      "retention": "Transcriptions kept for 7 days"
+      "retention": "Transcriptions kept for 7 days",
+      "sampleBadge": "Sample"
     },
     "rateLimit": {
       "remaining": "{count} remaining"
