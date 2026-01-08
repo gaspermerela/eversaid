@@ -25,7 +25,14 @@ class CoreAPIClient:
 
     def __init__(self, base_url: str, timeout: float = 60.0):
         self.base_url = base_url
-        self.client = httpx.AsyncClient(base_url=base_url, timeout=timeout)
+        # Increase connection pool to handle concurrent requests during high load
+        # Default is 100 max connections, which can exhaust quickly under parallel tests
+        limits = httpx.Limits(max_connections=500, max_keepalive_connections=50)
+        self.client = httpx.AsyncClient(
+            base_url=base_url,
+            timeout=timeout,
+            limits=limits,
+        )
 
     async def register(self, email: str, password: str) -> dict[str, Any]:
         """Register a new user in Core API.
