@@ -35,7 +35,8 @@ import { useAudioPlayer } from "@/features/transcription/useAudioPlayer"
 import { useWordHighlight } from "@/features/transcription/useWordHighlight"
 import { useAnalysis } from "@/features/transcription/useAnalysis"
 import { useProcessingStages } from "@/features/transcription/useProcessingStages"
-import { getEntryAudioUrl, triggerCleanup, getCleanedEntry, triggerAnalysis } from "@/features/transcription/api"
+import { getEntryAudioUrl } from "@/features/transcription/api"
+import { useDemoCleanupTrigger } from "@/features/transcription/useDemoCleanupTrigger"
 import { ProcessingStages } from "@/components/demo/processing-stages"
 
 // Mock spellcheck - in production, call a Slovenian spellcheck API
@@ -126,6 +127,14 @@ function DemoPageContent() {
   // Demo entries are automatically copied to user's history by the database trigger
   const entriesHook = useEntries({
     autoFetch: false,
+  })
+
+  // Auto-trigger cleanup for demo entries when they load
+  // This updates sidebar from "Processing" → "Complete" without user clicking
+  useDemoCleanupTrigger({
+    entries: entriesHook.rawEntries,
+    isLoading: entriesHook.isLoading,
+    onRefresh: entriesHook.refresh,
   })
 
   // Audio playback hook
