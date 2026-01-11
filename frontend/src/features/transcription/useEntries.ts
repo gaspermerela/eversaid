@@ -11,6 +11,22 @@ import type { EntrySummary } from "./types"
 import type { HistoryEntry } from "@/components/demo/types"
 import { formatDuration } from "@/lib/time-utils"
 
+/**
+ * Mapping of demo filenames to display names from environment variables.
+ * Falls back to original filename if env var is not set.
+ */
+const DEMO_DISPLAY_NAMES: Record<string, string | undefined> = {
+  "demo-sl.mp3": process.env.NEXT_PUBLIC_DEMO_SL_DISPLAY_NAME,
+  "demo-en.mp3": process.env.NEXT_PUBLIC_DEMO_EN_DISPLAY_NAME,
+}
+
+/**
+ * Get display name for a filename, using friendly name for demo entries if configured.
+ */
+function getDisplayName(filename: string): string {
+  return DEMO_DISPLAY_NAMES[filename] || filename
+}
+
 export interface UseEntriesOptions {
   /** Auto-fetch on mount (default: true) */
   autoFetch?: boolean
@@ -71,7 +87,7 @@ function deriveEntryStatus(
 function transformEntry(entry: EntrySummary): HistoryEntry {
   return {
     id: entry.id,
-    filename: entry.original_filename,
+    filename: getDisplayName(entry.original_filename),
     duration: formatDuration(entry.duration_seconds),
     status: deriveEntryStatus(
       entry.primary_transcription?.status,

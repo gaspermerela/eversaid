@@ -7,6 +7,9 @@ services:
         # For dev: http://localhost:8001 (browser accesses via host ports)
         # For prod: https://your-domain.com (nginx proxies /api to backend)
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+        # Demo entry display names (optional - falls back to filename if not set)
+        NEXT_PUBLIC_DEMO_SL_DISPLAY_NAME: ${NEXT_PUBLIC_DEMO_SL_DISPLAY_NAME:-}
+        NEXT_PUBLIC_DEMO_EN_DISPLAY_NAME: ${NEXT_PUBLIC_DEMO_EN_DISPLAY_NAME:-}
     container_name: eversaid-frontend
     ports:
       - "3000:3000"  # Direct access for dev
