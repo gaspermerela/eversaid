@@ -39,6 +39,10 @@ import { getEntryAudioUrl, getOptions, triggerCleanup } from "@/features/transcr
 import { useDemoCleanupTrigger } from "@/features/transcription/useDemoCleanupTrigger"
 import { ProcessingStages } from "@/components/demo/processing-stages"
 
+// Singleton promise for session initialization - prevents concurrent calls
+// from Suspense/hydration remounts while allowing re-init after navigation
+let sessionInitPromise: Promise<void> | null = null
+
 // Mock spellcheck - in production, call a Slovenian spellcheck API
 const checkSpelling = (text: string): SpellcheckError[] => {
   const mockErrors: SpellcheckError[] = []
@@ -206,7 +210,11 @@ function DemoPageContent() {
   const deletedEntryRef = useRef<string | null>(null)
 
   // Load entry from URL query param on mount (for browser back button support)
+  // Wait for sessionReady to avoid race condition where multiple requests
+  // with invalid session cookie create separate sessions
   useEffect(() => {
+    if (!sessionReady) return
+
     const entryId = searchParams.get('entry')
     // Don't reload if this entry was just deleted
     if (entryId && entryId === deletedEntryRef.current) {
@@ -217,7 +225,7 @@ function DemoPageContent() {
       // Demo entries detected by "demo-*" ID pattern
       transcription.loadEntry(entryId)
     }
-  }, [searchParams, transcription.entryId, transcription.status, transcription.loadEntry])
+  }, [sessionReady, searchParams, transcription.entryId, transcription.status, transcription.loadEntry])
 
   // Update URL when entry is loaded (creates browser history entry)
   // Use a ref to track if we've already pushed this entry to avoid loops
@@ -605,10 +613,25 @@ function DemoPageContent() {
 
   // Initialize session: fetch rate limits first (establishes session cookie)
   // Then mark session as ready for other API calls
+  // Use singleton promise to prevent concurrent calls from Suspense/hydration remounts
   useEffect(() => {
     const initSession = async () => {
-      await transcription.fetchRateLimits()
-      setSessionReady(true)
+      // If already initializing, wait for it
+      if (sessionInitPromise) {
+        await sessionInitPromise
+        setSessionReady(true)
+        return
+      }
+
+      // Start initialization (singleton pattern)
+      sessionInitPromise = transcription.fetchRateLimits()
+      try {
+        await sessionInitPromise
+        setSessionReady(true)
+      } finally {
+        // Clear promise after completion to allow re-init after navigation
+        sessionInitPromise = null
+      }
     }
     initSession()
   // eslint-disable-next-line react-hooks/exhaustive-deps
