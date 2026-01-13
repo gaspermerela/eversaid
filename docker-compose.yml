@@ -45,9 +45,9 @@ services:
       - ./backend:/app
       - ./data:/app/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 5s
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health && curl -f $$CORE_API_URL/health"]
+      interval: 10s
+      timeout: 10s
       retries: 3
     restart: unless-stopped
 
