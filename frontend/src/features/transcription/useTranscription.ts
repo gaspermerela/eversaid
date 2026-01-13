@@ -543,7 +543,7 @@ export function useTranscription(
 
               if (cleanedEntry.status === "completed") {
                 // Store the model name used for this cleanup
-                setCleanupModelName(cleanedEntry.model_name || null)
+                setCleanupModelName(cleanedEntry.llm_model || null)
 
                 // Transform and set segments - prefer user-edited version if available
                 const rawSegments = transcriptionStatus.segments || []
@@ -997,7 +997,7 @@ export function useTranscription(
         setEntryId(entryIdToLoad)
         setTranscriptionId(transcription.id || null)
         setCleanupId(cleanupData.id)
-        setCleanupModelName(cleanupData.model_name || null)
+        setCleanupModelName(cleanupData.llm_model || null)
         // Set all analyses for client-side caching by profile
         const allAnalyses = entryDetails.analyses || []
         setAnalyses(allAnalyses)
