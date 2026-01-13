@@ -14,10 +14,12 @@ You are an expert on the Smart Transcription Service REST API. You help develope
 ```
 User
  └── VoiceEntry (audio file)
-      └── Transcription (1 primary, can have multiple)
-            └── CleanedEntry (LLM cleanup, 1 primary per transcription)
-                 └── Analysis (optional, TOML-profile based)
+      ├── Transcription (1 primary, can have multiple)
+      └── CleanedEntry (LLM cleanup, 1 primary per voice entry, linked to transcription)
+           └── Analysis (optional, TOML-profile based)
 ```
+
+Note: CleanedEntry has both `voice_entry_id` and `transcription_id`. Primary cleanup is enforced per VoiceEntry.
 
 ### Background Processing Pattern
 
@@ -79,6 +81,38 @@ POST /upload-transcribe-cleanup
   llm_provider=runpod_llm_gams
 ```
 
+### Provider/Model Response Format
+
+All endpoints return provider and model as **separate fields**:
+
+```json
+{
+  "llm_provider": "groq",
+  "llm_model": "whisper-large-v3"
+}
+```
+
+This applies to:
+- Transcription responses: `llm_provider`, `llm_model` (was `model_used`)
+- Cleanup responses: `llm_provider`, `llm_model` (was `model_name`)
+- Analysis responses: `llm_provider`, `llm_model` (was `model_name`)
+- Combined workflow: `cleanup_llm_provider`, `cleanup_llm_model` (was `cleanup_model`)
+
+### Audio Format Support
+
+Each provider supports different audio formats. Use `GET /api/v1/audio-formats?provider=X` to check:
+
+| Provider | Notable Formats | Preprocessing |
+|----------|-----------------|---------------|
+| `groq` | .mp3, .mp4, .wav, .webm | No (cloud handles) |
+| `elevenlabs` | .mp3, .wav, **.opus**, .ogg | No (cloud handles) |
+| `assemblyai` | .mp3, .wav, .flac, .ogg | No (cloud handles) |
+| `clarin-slovene-asr` | .mp3, .wav, .ogg | **Yes** (to 16kHz WAV) |
+
+- **Upload without provider** (`POST /upload`) accepts union of all formats
+- **Upload with provider** validates against that provider's formats
+- Cloud providers receive original format; local ASR gets preprocessed WAV
+
 ### Encryption
 
 All data is encrypted at rest (envelope encryption). API responses return decrypted data transparently. No client-side handling needed.
@@ -90,7 +124,7 @@ Supported by: `assemblyai`, `elevenlabs`, `clarin-slovene-asr`
 Enable with:
 ```
 enable_diarization=true
-speaker_count=2  # optional, 1-20
+speaker_count=2  # optional, 1-10
 ```
 
 Response includes `segments[].speaker` field with speaker labels.
@@ -101,6 +135,24 @@ When fetching a cleaned entry with Slovenian transcription:
 - `spelling_issues` array included in response
 - Contains `{ word, suggestions[] }` for potential misspellings
 - Returns `null` for non-Slovenian
+
+### Prompt Template System
+
+LLM cleanup uses database-backed prompts selected via 3-dimensional lookup:
+
+| Dimension | Values | Description |
+|-----------|--------|-------------|
+| `entry_type` | `verbatim`, `corrected`, `formal` | Cleanup style |
+| `language` | `en`, `sl`, etc. | Language code |
+| `segment_type` | `single`, `multi` | Single vs multi-speaker |
+
+- One prompt can be `is_active=true` per combination
+- Fallback to hardcoded prompts if no DB match
+- Response includes `prompt_template_id`, `prompt_name`, `prompt_description`
+
+Prompts are split into:
+- `system_prompt`: Role, rules, constraints (static)
+- `user_template`: Content with `{transcription_text}` or `{segments_text}` placeholder
 
 ### Common Workflows
 
@@ -429,6 +481,19 @@ List Supported Languages
 **Response:** `LanguagesListResponse`
 
 
+#### `GET /api/v1/audio-formats`
+
+Get supported audio formats for a provider
+
+**Parameters:**
+
+| Name | In | Type | Required | Description |
+|------|-----|------|----------|-------------|
+| `provider` | query | string | No | Transcription provider to get formats for. If not specified, returns base formats (union of all providers). |
+
+**Response:** `AudioFormatsResponse`
+
+
 ### Notion
 
 #### `POST /api/v1/notion/configure`
@@ -681,7 +746,8 @@ Update user preferences
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `status` | string | Yes |  |
-| `model_used` | string | Yes |  |
+| `llm_provider` | string | Yes | Transcription provider (groq, assemblyai, etc.) |
+| `llm_model` | string | Yes | Model name without provider prefix |
 | `language_code` | string | Yes |  |
 | `is_primary` | boolean | No |  |
 | `beam_size` | integer | No |  |
@@ -711,7 +777,8 @@ Update user preferences
 | `cleaned_text` | string | No | LLM-cleaned text |
 | `llm_raw_response` | string | No | Raw LLM response before parsing |
 | `status` | CleanupStatus | Yes | Cleanup processing status |
-| `model_name` | string | Yes | LLM model used |
+| `llm_provider` | string | Yes | LLM provider (groq, runpod_llm_gams, etc.) |
+| `llm_model` | string | Yes | LLM model name without provider prefix |
 | `temperature` | number | No | Temperature used for LLM |
 | `top_p` | number | No | Top-p value used for LLM |
 | `error_message` | string | No | Error details if failed |
@@ -756,7 +823,8 @@ Update user preferences
 | `transcription_language` | string | Yes | Language code for transcription |
 | `cleanup_id` | UUID | Yes | Cleanup entry ID |
 | `cleanup_status` | CleanupStatus | Yes | Cleanup processing status |
-| `cleanup_model` | string | Yes | LLM model for cleanup |
+| `cleanup_llm_provider` | string | Yes | LLM provider for cleanup |
+| `cleanup_llm_model` | string | Yes | LLM model for cleanup |
 | `analysis_id` | UUID | No | Analysis ID (if analysis was triggered) |
 | `analysis_status` | string | No | Analysis processing status (if triggered) |
 | `analysis_profile` | string | No | Analysis profile used (if triggered) |
