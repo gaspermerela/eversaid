@@ -36,6 +36,7 @@ import { useWordHighlight } from "@/features/transcription/useWordHighlight"
 import { useAnalysis } from "@/features/transcription/useAnalysis"
 import { useProcessingStages } from "@/features/transcription/useProcessingStages"
 import { getEntryAudioUrl, getOptions } from "@/features/transcription/api"
+import { getCleanupModels, getAnalysisModels } from "@/lib/model-config"
 import { toast } from "sonner"
 import { useDemoCleanupTrigger } from "@/features/transcription/useDemoCleanupTrigger"
 import { ProcessingStages } from "@/components/demo/processing-stages"
@@ -104,7 +105,8 @@ function DemoPageContent() {
   const [selectedSpeakerCount, setSelectedSpeakerCount] = useState(2)
 
   // LLM Model Selection State
-  const [availableLlmModels, setAvailableLlmModels] = useState<ModelInfo[]>([])
+  const [cleanupModels, setCleanupModels] = useState<ModelInfo[]>([])
+  const [analysisModels, setAnalysisModels] = useState<ModelInfo[]>([])
   const [selectedCleanupModel, setSelectedCleanupModel] = useState<string>('')
   const [selectedCleanupLevel, setSelectedCleanupLevel] = useState<CleanupType>('corrected')
   const [selectedAnalysisModel, setSelectedAnalysisModel] = useState<string>('')
@@ -643,13 +645,19 @@ function DemoPageContent() {
     if (sessionReady) {
       entriesHook.refresh()
       analysisHook.loadProfiles()
-      // Fetch available LLM models
+      // Fetch available LLM models (filtered by config)
       getOptions().then(({ data }) => {
-        setAvailableLlmModels(data.llm.models)
-        // Set default model if available
-        if (data.llm.models.length > 0) {
-          setSelectedCleanupModel(data.llm.models[0].id)
-          setSelectedAnalysisModel(data.llm.models[0].id)
+        const filteredCleanup = getCleanupModels(data.llm.models)
+        const filteredAnalysis = getAnalysisModels(data.llm.models)
+
+        setCleanupModels(filteredCleanup)
+        setAnalysisModels(filteredAnalysis)
+
+        if (filteredCleanup.length > 0) {
+          setSelectedCleanupModel(filteredCleanup[0].id)
+        }
+        if (filteredAnalysis.length > 0) {
+          setSelectedAnalysisModel(filteredAnalysis[0].id)
         }
       }).catch((err) => {
         console.error('Failed to fetch options:', err)
@@ -1002,8 +1010,8 @@ function DemoPageContent() {
                 isExpanded={isEditorExpanded}
                 onExpandToggle={() => setIsEditorExpanded(true)}
                 onClose={() => setIsEditorExpanded(false)}
-                cleanupOptions={availableLlmModels.length > 0 ? {
-                  models: availableLlmModels,
+                cleanupOptions={cleanupModels.length > 0 ? {
+                  models: cleanupModels,
                   selectedModel: selectedCleanupModel,
                   selectedLevel: selectedCleanupLevel,
                   isProcessing: transcription.status === 'cleaning',
@@ -1042,7 +1050,7 @@ function DemoPageContent() {
                       onAnalysisTypeChange={setAnalysisType}
                       onToggleAnalysisMenu={handleToggleAnalysisMenu}
                       onSelectProfile={handleSelectProfile}
-                      availableModels={availableLlmModels}
+                      availableModels={analysisModels}
                       selectedModel={selectedAnalysisModel}
                       onModelChange={handleAnalysisModelChange}
                     />

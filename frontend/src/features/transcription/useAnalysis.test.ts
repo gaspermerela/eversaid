@@ -272,7 +272,7 @@ describe('useAnalysis', () => {
         await result.current.analyze()
       })
 
-      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', 'action-items')
+      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', { profileId: 'action-items', llmModel: undefined })
     })
 
     it('respects defaultProfile override from options', async () => {
@@ -300,7 +300,7 @@ describe('useAnalysis', () => {
         await result.current.analyze()
       })
 
-      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', 'reflection')
+      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', { profileId: 'reflection', llmModel: undefined })
     })
 
     it('handles API error gracefully', async () => {
@@ -349,7 +349,7 @@ describe('useAnalysis', () => {
         await result.current.analyze('action-items')
       })
 
-      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', 'action-items')
+      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', { profileId: 'action-items', llmModel: undefined })
       expect(result.current.currentProfileId).toBe('action-items')
     })
 
@@ -367,7 +367,7 @@ describe('useAnalysis', () => {
         await result.current.analyze()
       })
 
-      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', 'generic-summary')
+      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', { profileId: 'generic-summary', llmModel: undefined })
     })
 
     it('sets isLoading during analysis trigger', async () => {
@@ -764,7 +764,7 @@ describe('useAnalysis', () => {
       })
 
       expect(api.getAnalyses).toHaveBeenCalled()
-      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', 'action-items')
+      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', { profileId: 'action-items', llmModel: undefined })
     })
 
     it('handles getAnalyses error gracefully and triggers new analysis', async () => {
