@@ -223,8 +223,6 @@
     "transcript": {
       "rawTitle": "Raw Transcription",
       "cleanedTitle": "AI Cleaned",
-      "diffOn": "Diff On",
-      "diffOff": "Diff Off",
       "copy": "Copy",
       "edit": "Edit",
       "revert": "Revert",
@@ -293,6 +291,14 @@
       "remaining": "{count} remaining"
     },
     "cleanup": {
+      "openSourceModel": "Open Source Model:",
+      "style": "Style:",
+      "levels": {
+        "verbatim": "Verbatim",
+        "corrected": "Corrected",
+        "formal": "Formal"
+      },
+      "copy": "Copy",
       "modelChangeFailed": "Failed to reprocess with selected model. Please try again.",
       "levelChangeFailed": "Failed to change cleanup level. Please try again."
     },

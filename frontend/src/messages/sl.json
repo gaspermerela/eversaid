@@ -223,8 +223,6 @@
     "transcript": {
       "rawTitle": "Surova transkripcija",
       "cleanedTitle": "AI očiščeno",
-      "diffOn": "Razlike vklj.",
-      "diffOff": "Razlike izklj.",
       "copy": "Kopiraj",
       "edit": "Uredi",
       "revert": "Povrni",
@@ -293,6 +291,14 @@
       "remaining": "{count, plural, one {# preostane} two {# preostaneta} few {# preostanejo} other {# preostane}}"
     },
     "cleanup": {
+      "openSourceModel": "Odprtokodni model:",
+      "style": "Slog:",
+      "levels": {
+        "verbatim": "Dobesedno",
+        "corrected": "Popravljeno",
+        "formal": "Formalno"
+      },
+      "copy": "Kopiraj",
       "modelChangeFailed": "Čiščenje z izbranim modelom ni uspelo. Poskusite znova.",
       "levelChangeFailed": "Sprememba ravni čiščenja ni uspela. Poskusite znova."
     },
