@@ -49,6 +49,8 @@ export interface UseAnalysisReturn {
   currentProfileLabel: string | null
   /** Intent of currently selected profile (for subtitle display) */
   currentProfileIntent: string | null
+  /** Model name used for the current analysis result */
+  currentAnalysisModelName: string | null
   /** Select a profile - checks cache, then API, then triggers LLM if needed */
   selectProfile: (profileId: string) => Promise<void>
   /** Trigger analysis with a specific profile (always triggers new LLM call) */
@@ -148,6 +150,13 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
     const profile = profiles.find(p => p.id === currentProfileId)
     return profile?.intent ?? null
   }, [currentProfileId, profiles])
+
+  // Computed model name from current analysis result
+  const currentAnalysisModelName = useMemo(() => {
+    if (!currentProfileId) return null
+    const cached = analysisCache.get(currentProfileId)
+    return cached?.model_name ?? null
+  }, [currentProfileId, analysisCache])
 
   // Polling interval ref
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -459,6 +468,7 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
     currentProfileId,
     currentProfileLabel,
     currentProfileIntent,
+    currentAnalysisModelName,
     selectProfile,
     analyze,
     runAnalysis: analyze,  // Alias for analyze with clearer semantics

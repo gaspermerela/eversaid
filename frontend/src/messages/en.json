@@ -279,7 +279,8 @@
           "label": "Reflection & Insights",
           "intent": "self-discovery"
         }
-      }
+      },
+      "modelChangeFailed": "Failed to rerun analysis with selected model. Please try again."
     },
     "history": {
       "title": "Your Transcriptions",
@@ -290,6 +291,10 @@
     },
     "rateLimit": {
       "remaining": "{count} remaining"
+    },
+    "cleanup": {
+      "modelChangeFailed": "Failed to reprocess with selected model. Please try again.",
+      "levelChangeFailed": "Failed to change cleanup level. Please try again."
     },
     "feedback": {
       "title": "How was the quality?",

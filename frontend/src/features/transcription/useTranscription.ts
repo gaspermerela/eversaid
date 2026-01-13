@@ -18,6 +18,7 @@ import type {
   TranscriptionWord,
   EditWord,
   EditedData,
+  CleanupType,
 } from "./types"
 import { ApiError } from "./types"
 import { parseAllSegmentTimes, findSegmentAtTime } from "@/lib/time-utils"
@@ -58,6 +59,8 @@ export interface UseTranscriptionReturn {
   transcriptionId: string | null
   /** Current cleanup ID (needed for editing) */
   cleanupId: string | null
+  /** Model name used for the current cleanup result */
+  cleanupModelName: string | null
   /** Current analysis ID (for polling analysis results) */
   analysisId: string | null
   /** All analyses for this entry (for client-side caching by profile) */
@@ -157,6 +160,12 @@ export interface UseTranscriptionReturn {
    * Call on page mount to display initial rate limit info
    */
   fetchRateLimits: () => Promise<void>
+
+  /**
+   * Reprocess cleanup with new model or cleanup type.
+   * Polls for completion and reloads entry when done.
+   */
+  reprocessCleanup: (options?: { cleanupType?: CleanupType; llmModel?: string }) => Promise<void>
 }
 
 /**
@@ -261,6 +270,7 @@ export function useTranscription(
   const [entryId, setEntryId] = useState<string | null>(null)
   const [transcriptionId, setTranscriptionId] = useState<string | null>(null)
   const [cleanupId, setCleanupId] = useState<string | null>(null)
+  const [cleanupModelName, setCleanupModelName] = useState<string | null>(null)
   const [analysisId, setAnalysisId] = useState<string | null>(null)
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([])
   const [rateLimits, setRateLimits] = useState<RateLimitInfo | null>(null)
@@ -532,6 +542,9 @@ export function useTranscription(
               const { data: cleanedEntry } = await getCleanedEntry(cleanupIdVal)
 
               if (cleanedEntry.status === "completed") {
+                // Store the model name used for this cleanup
+                setCleanupModelName(cleanedEntry.model_name || null)
+
                 // Transform and set segments - prefer user-edited version if available
                 const rawSegments = transcriptionStatus.segments || []
                 const cleanedSegments = cleanedEntry.cleanup_data_edited || cleanedEntry.cleaned_segments || []
@@ -661,6 +674,75 @@ export function useTranscription(
       pollingRef.current = setTimeout(poll, POLL_INTERVAL_MS)
     },
     []
+  )
+
+  /**
+   * Reprocess cleanup with new options (model, cleanup type).
+   * Sets status to cleaning, triggers new cleanup, polls for completion, then reloads entry.
+   */
+  const reprocessCleanup = useCallback(
+    async (options: { cleanupType?: CleanupType; llmModel?: string } = {}): Promise<void> => {
+      if (!transcriptionId || !entryId) {
+        console.warn("[reprocessCleanup] Missing transcriptionId or entryId")
+        return
+      }
+
+      // Clean up any existing polling
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current)
+        pollingRef.current = null
+      }
+
+      setStatus("cleaning")
+      setError(null)
+
+      try {
+        // Trigger new cleanup
+        const { data: cleanupJob } = await triggerCleanup(transcriptionId, options)
+        setCleanupId(cleanupJob.id)
+        setCleanupModelName(null) // Clear until new cleanup completes
+        console.log("[reprocessCleanup] Cleanup triggered:", cleanupJob.id)
+
+        // Poll for completion (this will reload entry when done)
+        await new Promise<void>((resolve, reject) => {
+          const poll = async () => {
+            try {
+              const { data: cleanedEntry } = await getCleanedEntry(cleanupJob.id)
+
+              if (cleanedEntry.status === "completed") {
+                console.log("[reprocessCleanup] Cleanup complete")
+                // Reload entry to get full data
+                if (loadEntryRef.current) {
+                  await loadEntryRef.current(entryId)
+                }
+                resolve()
+              } else if (cleanedEntry.status === "failed") {
+                setError(cleanedEntry.error_message || "Cleanup failed")
+                setStatus("error")
+                reject(new Error(cleanedEntry.error_message || "Cleanup failed"))
+              } else {
+                // Still processing, continue polling
+                pollingRef.current = setTimeout(poll, POLL_INTERVAL_MS)
+              }
+            } catch (err) {
+              console.error("[reprocessCleanup] Poll error:", err)
+              setError("Failed to check cleanup status")
+              setStatus("error")
+              reject(err)
+            }
+          }
+          poll()
+        })
+      } catch (err) {
+        console.error("[reprocessCleanup] Error:", err)
+        if (err instanceof Error && !error) {
+          setError(err.message)
+        }
+        setStatus("error")
+        throw err
+      }
+    },
+    [transcriptionId, entryId, error]
   )
 
   /**
@@ -915,6 +997,7 @@ export function useTranscription(
         setEntryId(entryIdToLoad)
         setTranscriptionId(transcription.id || null)
         setCleanupId(cleanupData.id)
+        setCleanupModelName(cleanupData.model_name || null)
         // Set all analyses for client-side caching by profile
         const allAnalyses = entryDetails.analyses || []
         setAnalyses(allAnalyses)
@@ -967,6 +1050,7 @@ export function useTranscription(
     setEntryId(null)
     setTranscriptionId(null)
     setCleanupId(null)
+    setCleanupModelName(null)
     setAnalysisId(null)
     setAnalyses([])
     setRateLimits(null)
@@ -1009,6 +1093,7 @@ export function useTranscription(
     entryId,
     transcriptionId,
     cleanupId,
+    cleanupModelName,
     analysisId,
     analyses,
     rateLimits,
@@ -1028,6 +1113,7 @@ export function useTranscription(
     getSegmentAtTime,
     reset,
     fetchRateLimits,
+    reprocessCleanup,
   }
 }
 
