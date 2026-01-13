@@ -279,7 +279,8 @@
           "label": "Razmislek in uvidi",
           "intent": "samoodkrivanje"
         }
-      }
+      },
+      "modelChangeFailed": "Analiza z izbranim modelom ni uspela. Poskusite znova."
     },
     "history": {
       "title": "Vaše transkripcije",
@@ -290,6 +291,10 @@
     },
     "rateLimit": {
       "remaining": "{count, plural, one {# preostane} two {# preostaneta} few {# preostanejo} other {# preostane}}"
+    },
+    "cleanup": {
+      "modelChangeFailed": "Čiščenje z izbranim modelom ni uspelo. Poskusite znova.",
+      "levelChangeFailed": "Sprememba ravni čiščenja ni uspela. Poskusite znova."
     },
     "feedback": {
       "title": "Kakšna je bila kakovost?",

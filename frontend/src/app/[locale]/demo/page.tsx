@@ -35,7 +35,8 @@ import { useAudioPlayer } from "@/features/transcription/useAudioPlayer"
 import { useWordHighlight } from "@/features/transcription/useWordHighlight"
 import { useAnalysis } from "@/features/transcription/useAnalysis"
 import { useProcessingStages } from "@/features/transcription/useProcessingStages"
-import { getEntryAudioUrl, getOptions, triggerCleanup } from "@/features/transcription/api"
+import { getEntryAudioUrl, getOptions } from "@/features/transcription/api"
+import { toast } from "sonner"
 import { useDemoCleanupTrigger } from "@/features/transcription/useDemoCleanupTrigger"
 import { ProcessingStages } from "@/components/demo/processing-stages"
 
@@ -107,7 +108,6 @@ function DemoPageContent() {
   const [selectedCleanupModel, setSelectedCleanupModel] = useState<string>('')
   const [selectedCleanupLevel, setSelectedCleanupLevel] = useState<CleanupType>('corrected')
   const [selectedAnalysisModel, setSelectedAnalysisModel] = useState<string>('')
-  const [isCleanupReprocessing, setIsCleanupReprocessing] = useState(false)
 
   // Editing State
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null)
@@ -537,56 +537,57 @@ function DemoPageContent() {
 
   // Handler for cleanup model change - auto-triggers re-cleanup
   const handleCleanupModelChange = useCallback(async (modelId: string) => {
+    const previousModel = selectedCleanupModel
     setSelectedCleanupModel(modelId)
     if (!transcription.transcriptionId) return
 
-    setIsCleanupReprocessing(true)
     try {
-      await triggerCleanup(transcription.transcriptionId, {
+      await transcription.reprocessCleanup({
         cleanupType: selectedCleanupLevel,
         llmModel: modelId,
       })
-      // Reload entry to get new cleanup results
-      if (transcription.entryId) {
-        await transcription.loadEntry(transcription.entryId)
-      }
     } catch (err) {
       console.error('Re-cleanup failed:', err)
-    } finally {
-      setIsCleanupReprocessing(false)
+      // Revert to previous model and show error
+      setSelectedCleanupModel(previousModel)
+      toast.error(t('demo.cleanup.modelChangeFailed'))
     }
-  }, [transcription.transcriptionId, transcription.entryId, transcription.loadEntry, selectedCleanupLevel])
+  }, [transcription, selectedCleanupLevel, selectedCleanupModel, t])
 
   // Handler for cleanup level change - auto-triggers re-cleanup
   const handleCleanupLevelChange = useCallback(async (level: CleanupType) => {
+    const previousLevel = selectedCleanupLevel
     setSelectedCleanupLevel(level)
     if (!transcription.transcriptionId) return
 
-    setIsCleanupReprocessing(true)
     try {
-      await triggerCleanup(transcription.transcriptionId, {
+      await transcription.reprocessCleanup({
         cleanupType: level,
         llmModel: selectedCleanupModel || undefined,
       })
-      // Reload entry to get new cleanup results
-      if (transcription.entryId) {
-        await transcription.loadEntry(transcription.entryId)
-      }
     } catch (err) {
       console.error('Re-cleanup failed:', err)
-    } finally {
-      setIsCleanupReprocessing(false)
+      // Revert to previous level and show error
+      setSelectedCleanupLevel(previousLevel)
+      toast.error(t('demo.cleanup.levelChangeFailed'))
     }
-  }, [transcription.transcriptionId, transcription.entryId, transcription.loadEntry, selectedCleanupModel])
+  }, [transcription, selectedCleanupModel, selectedCleanupLevel, t])
 
   // Handler for analysis model change - auto-triggers re-analysis
   const handleAnalysisModelChange = useCallback(async (modelId: string) => {
+    const previousModel = selectedAnalysisModel
     setSelectedAnalysisModel(modelId)
     if (!transcription.cleanupId || !analysisHook.currentProfileId) return
 
-    // Trigger new analysis with selected model
-    await analysisHook.runAnalysis(analysisHook.currentProfileId, modelId)
-  }, [transcription.cleanupId, analysisHook])
+    try {
+      await analysisHook.runAnalysis(analysisHook.currentProfileId, modelId)
+    } catch (err) {
+      console.error('Re-analysis failed:', err)
+      // Revert to previous model and show error
+      setSelectedAnalysisModel(previousModel)
+      toast.error(t('demo.analysis.modelChangeFailed'))
+    }
+  }, [transcription.cleanupId, analysisHook, selectedAnalysisModel, t])
 
   const handleTranscribeClick = useCallback(async () => {
     if (!selectedFile) return
@@ -664,6 +665,20 @@ function DemoPageContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcription.analyses])
+
+  // Sync cleanup model selection with actual model used (when loading entry)
+  useEffect(() => {
+    if (transcription.cleanupModelName) {
+      setSelectedCleanupModel(transcription.cleanupModelName)
+    }
+  }, [transcription.cleanupModelName])
+
+  // Sync analysis model selection with actual model used (when loading entry)
+  useEffect(() => {
+    if (analysisHook.currentAnalysisModelName) {
+      setSelectedAnalysisModel(analysisHook.currentAnalysisModelName)
+    }
+  }, [analysisHook.currentAnalysisModelName])
 
   // Auto-scroll to active segment during playback
   useEffect(() => {
@@ -991,7 +1006,7 @@ function DemoPageContent() {
                   models: availableLlmModels,
                   selectedModel: selectedCleanupModel,
                   selectedLevel: selectedCleanupLevel,
-                  isProcessing: isCleanupReprocessing,
+                  isProcessing: transcription.status === 'cleaning',
                   onModelChange: handleCleanupModelChange,
                   onLevelChange: handleCleanupLevelChange,
                 } : undefined}
