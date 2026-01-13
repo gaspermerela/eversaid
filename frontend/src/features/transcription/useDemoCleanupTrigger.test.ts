@@ -347,7 +347,7 @@ describe('useDemoCleanupTrigger', () => {
       expect(api.getCleanedEntry).toHaveBeenCalledTimes(2)
 
       // Should have triggered analysis
-      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', 'generic-summary')
+      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', { profileId: 'generic-summary' })
 
       // Should have called refresh
       expect(mockOnRefresh).toHaveBeenCalled()
@@ -466,7 +466,7 @@ describe('useDemoCleanupTrigger', () => {
         await vi.advanceTimersByTimeAsync(2000)
       })
 
-      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', 'generic-summary')
+      expect(api.triggerAnalysis).toHaveBeenCalledWith('cleanup-123', { profileId: 'generic-summary' })
     })
 
     it('continues even if analysis trigger fails', async () => {
