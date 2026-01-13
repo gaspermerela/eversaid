@@ -197,7 +197,8 @@ export interface CleanedEntry {
   cleaned_text: string | null
   llm_raw_response?: string | null
   status: 'pending' | 'processing' | 'completed' | 'failed'
-  model_name: string
+  llm_provider: string
+  llm_model: string
   temperature?: number | null
   top_p?: number | null
   error_message?: string | null
@@ -339,7 +340,8 @@ export interface AnalysisResult {
   profile_label?: string
   result?: Record<string, unknown> | null
   status: 'pending' | 'processing' | 'completed' | 'failed'
-  model_name: string
+  llm_provider: string
+  llm_model: string
   temperature?: number | null
   top_p?: number | null
   error_message?: string | null

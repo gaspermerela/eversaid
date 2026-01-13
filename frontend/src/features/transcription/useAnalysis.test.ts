@@ -65,7 +65,8 @@ const mockAnalysisResult: AnalysisResult = {
     key_points: ['point1', 'point2'],
   },
   status: 'completed',
-  model_name: 'gpt-4',
+  llm_provider: 'openai',
+  llm_model: 'gpt-4',
   created_at: '2024-01-01T00:00:00Z',
 }
 

@@ -155,7 +155,7 @@ export function useAnalysis(options: UseAnalysisOptions): UseAnalysisReturn {
   const currentAnalysisModelName = useMemo(() => {
     if (!currentProfileId) return null
     const cached = analysisCache.get(currentProfileId)
-    return cached?.model_name ?? null
+    return cached?.llm_model ?? null
   }, [currentProfileId, analysisCache])
 
   // Polling interval ref

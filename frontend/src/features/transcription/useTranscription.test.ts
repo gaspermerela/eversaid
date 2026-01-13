@@ -357,7 +357,8 @@ describe('useTranscription', () => {
           cleaned_text: 'Hello world.',
           user_edited_text: null,
           status: 'completed',
-          model_name: 'gpt-4',
+          llm_provider: 'openai',
+          llm_model: 'gpt-4',
           is_primary: true,
           created_at: new Date().toISOString(),
           cleaned_segments: [
