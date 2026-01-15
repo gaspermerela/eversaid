@@ -46,6 +46,9 @@ import { ProcessingStages } from "@/components/demo/processing-stages"
 // from Suspense/hydration remounts while allowing re-init after navigation
 let sessionInitPromise: Promise<void> | null = null
 
+// Feature flag for model selection UI (controlled via NEXT_PUBLIC_ENABLE_MODEL_SELECTION env var)
+const isModelSelectionEnabled = process.env.NEXT_PUBLIC_ENABLE_MODEL_SELECTION === 'true'
+
 // Mock spellcheck - in production, call a Slovenian spellcheck API
 // Kept for future use when spellcheck feature is implemented
 const _checkSpelling = (text: string): SpellcheckError[] => {
@@ -647,23 +650,25 @@ function DemoPageContent() {
     if (sessionReady) {
       entriesHook.refresh()
       analysisHook.loadProfiles()
-      // Fetch available LLM models (filtered by config)
-      getOptions().then(({ data }) => {
-        const filteredCleanup = getCleanupModels(data.llm.models)
-        const filteredAnalysis = getAnalysisModels(data.llm.models)
+      // Fetch available LLM models if model selection feature is enabled
+      if (isModelSelectionEnabled) {
+        getOptions().then(({ data }) => {
+          const filteredCleanup = getCleanupModels(data.llm.models)
+          const filteredAnalysis = getAnalysisModels(data.llm.models)
 
-        setCleanupModels(filteredCleanup)
-        setAnalysisModels(filteredAnalysis)
+          setCleanupModels(filteredCleanup)
+          setAnalysisModels(filteredAnalysis)
 
-        if (filteredCleanup.length > 0) {
-          setSelectedCleanupModel(filteredCleanup[0].id)
-        }
-        if (filteredAnalysis.length > 0) {
-          setSelectedAnalysisModel(filteredAnalysis[0].id)
-        }
-      }).catch((err) => {
-        console.error('Failed to fetch options:', err)
-      })
+          if (filteredCleanup.length > 0) {
+            setSelectedCleanupModel(filteredCleanup[0].id)
+          }
+          if (filteredAnalysis.length > 0) {
+            setSelectedAnalysisModel(filteredAnalysis[0].id)
+          }
+        }).catch((err) => {
+          console.error('Failed to fetch options:', err)
+        })
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionReady])
@@ -1012,14 +1017,14 @@ function DemoPageContent() {
                 isExpanded={isEditorExpanded}
                 onExpandToggle={() => setIsEditorExpanded(true)}
                 onClose={() => setIsEditorExpanded(false)}
-                cleanupOptions={cleanupModels.length > 0 ? {
+                cleanupOptions={{
                   models: cleanupModels,
                   selectedModel: selectedCleanupModel,
                   selectedLevel: selectedCleanupLevel,
                   isProcessing: transcription.status === 'cleaning',
                   onModelChange: handleCleanupModelChange,
                   onLevelChange: handleCleanupLevelChange,
-                } : undefined}
+                }}
               />
             </ExpandableCard>
 

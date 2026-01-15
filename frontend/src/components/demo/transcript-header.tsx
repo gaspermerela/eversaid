@@ -81,42 +81,44 @@ export function TranscriptHeader({
               <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
             )}
 
-            {/* Model dropdown */}
-            <div className="flex items-center">
-              <span className="text-xs font-semibold text-foreground/70 mr-1.5">{t("openSourceModel")}</span>
-              <div className="relative">
-                <button
-                  onClick={() => !cleanupOptions.isProcessing && setShowModelMenu(!showModelMenu)}
-                  disabled={cleanupOptions.isProcessing}
-                  className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all ${
-                    cleanupOptions.isProcessing
-                      ? "bg-muted text-muted-foreground cursor-not-allowed"
-                      : "bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <span className="max-w-[80px] truncate">{selectedModelName}</span>
-                  <ChevronDown className="w-3 h-3 flex-shrink-0" />
-                </button>
-                {showModelMenu && (
-                  <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[160px]">
-                    {cleanupOptions.models.map((model) => (
-                      <button
-                        key={model.id}
-                        onClick={() => {
-                          cleanupOptions.onModelChange(model.id)
-                          setShowModelMenu(false)
-                        }}
-                        className={`block w-full px-3 py-2 text-left text-[11px] transition-colors hover:bg-muted ${
-                          cleanupOptions.selectedModel === model.id ? "bg-secondary font-medium" : ""
-                        }`}
-                      >
-                        {model.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+            {/* Model dropdown - only shown when models are available */}
+            {cleanupOptions.models.length > 0 && (
+              <div className="flex items-center">
+                <span className="text-xs font-semibold text-foreground/70 mr-1.5">{t("openSourceModel")}</span>
+                <div className="relative">
+                  <button
+                    onClick={() => !cleanupOptions.isProcessing && setShowModelMenu(!showModelMenu)}
+                    disabled={cleanupOptions.isProcessing}
+                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium transition-all ${
+                      cleanupOptions.isProcessing
+                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                        : "bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <span className="max-w-[80px] truncate">{selectedModelName}</span>
+                    <ChevronDown className="w-3 h-3 flex-shrink-0" />
+                  </button>
+                  {showModelMenu && (
+                    <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[160px]">
+                      {cleanupOptions.models.map((model) => (
+                        <button
+                          key={model.id}
+                          onClick={() => {
+                            cleanupOptions.onModelChange(model.id)
+                            setShowModelMenu(false)
+                          }}
+                          className={`block w-full px-3 py-2 text-left text-[11px] transition-colors hover:bg-muted ${
+                            cleanupOptions.selectedModel === model.id ? "bg-secondary font-medium" : ""
+                          }`}
+                        >
+                          {model.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Level dropdown */}
             <div className="flex items-center">
