@@ -2,7 +2,7 @@
 import { useState } from "react"
 import type { Segment } from "@/components/demo/types"
 import type { ModelInfo, CleanupType, CleanupSummary } from "@/features/transcription/types"
-import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check } from "lucide-react"
+import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check, Medal } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { getDefaultModelForLevel } from "@/lib/model-config"
 
@@ -21,6 +21,8 @@ export interface CleanupOptionsProps {
   onLevelChange: (level: CleanupType) => void
   /** Array of existing cleanups for cache indicator */
   cachedCleanups?: CleanupSummary[]
+  /** Whether user has manually selected a model (vs using defaults) */
+  hasManualSelection?: boolean
 }
 
 export interface TranscriptHeaderProps {
@@ -104,6 +106,8 @@ export function TranscriptHeader({
                   {showModelMenu && (
                     <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[160px]">
                       {cleanupOptions.models.map((model) => {
+                        // Check if this is the recommended model for current level
+                        const isRecommendedForLevel = model.id === getDefaultModelForLevel(cleanupOptions.selectedLevel)
                         // Check if cached (exact match on cleanup_type)
                         const isCached = cleanupOptions.cachedCleanups?.some(c =>
                           c.llm_model === model.id &&
@@ -121,7 +125,10 @@ export function TranscriptHeader({
                               cleanupOptions.selectedModel === model.id ? "bg-secondary font-medium" : ""
                             }`}
                           >
-                            <span>{model.name}</span>
+                            <span className="flex items-center gap-1.5">
+                              {model.name}
+                              {isRecommendedForLevel && <Medal className="w-3 h-3 text-amber-500" />}
+                            </span>
                             {isCached && <Check className="w-3 h-3 text-green-500 flex-shrink-0" />}
                           </button>
                         )
@@ -151,10 +158,13 @@ export function TranscriptHeader({
                 {showLevelMenu && (
                   <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[100px]">
                     {CLEANUP_LEVEL_IDS.map((levelId) => {
-                      // Check if cached (exact match on cleanup_type)
-                      const defaultModelForLevel = getDefaultModelForLevel(levelId)
+                      // When user has manually selected a model, check cache for that model
+                      // Otherwise, check cache for the level's default model
+                      const modelToCheck = cleanupOptions.hasManualSelection
+                        ? cleanupOptions.selectedModel
+                        : getDefaultModelForLevel(levelId)
                       const isCached = cleanupOptions.cachedCleanups?.some(c =>
-                        c.llm_model === defaultModelForLevel &&
+                        c.llm_model === modelToCheck &&
                         c.cleanup_type === levelId &&
                         c.status === 'completed'
                       )
