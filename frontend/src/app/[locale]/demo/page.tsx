@@ -645,28 +645,31 @@ function DemoPageContent() {
   }, [transcription, selectedCleanupModel, selectedCleanupLevel, cleanupCache, hasManualCleanupModelSelection, selectedCleanupTemp, t])
 
   // Handler for temperature change - uses cached cleanup if available
-  const handleCleanupTempChange = useCallback(async (temp: number | null) => {
+  // Long-press (2s) passes forceRerun=true to bypass cache
+  const handleCleanupTempChange = useCallback(async (temp: number | null, forceRerun?: boolean) => {
     const previousTemp = selectedCleanupTemp
     setSelectedCleanupTemp(temp)
     if (!transcription.transcriptionId || !transcription.entryId) return
 
     try {
-      // Check if cleanup already exists (exact match on model, level, and temperature)
-      const existing = cleanupCache.find(c =>
-        c.llm_model === selectedCleanupModel &&
-        c.cleanup_type === selectedCleanupLevel &&
-        temperaturesMatch(c.temperature, temp) &&
-        c.status === 'completed'
-      )
+      // Check cache UNLESS forceRerun is true (long-press)
+      if (!forceRerun) {
+        const existing = cleanupCache.find(c =>
+          c.llm_model === selectedCleanupModel &&
+          c.cleanup_type === selectedCleanupLevel &&
+          temperaturesMatch(c.temperature, temp) &&
+          c.status === 'completed'
+        )
 
-      if (existing) {
-        // CACHED: Fetch existing cleanup (no LLM call)
-        const { data: cleanup } = await getCleanedEntry(existing.id)
-        transcription.loadCleanupData(cleanup)
-        return
+        if (existing) {
+          // CACHED: Fetch existing cleanup (no LLM call)
+          const { data: cleanup } = await getCleanedEntry(existing.id)
+          transcription.loadCleanupData(cleanup)
+          return
+        }
       }
 
-      // NOT CACHED: Trigger new cleanup with temperature
+      // NOT CACHED or FORCE RE-RUN: Trigger new cleanup with temperature
       await transcription.reprocessCleanup({
         cleanupType: selectedCleanupLevel,
         llmModel: selectedCleanupModel,

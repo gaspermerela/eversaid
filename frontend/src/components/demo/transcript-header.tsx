@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useRef } from "react"
 import type { Segment } from "@/components/demo/types"
 import type { ModelInfo, CleanupType, CleanupSummary } from "@/features/transcription/types"
 import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check, Medal } from "lucide-react"
@@ -27,7 +27,7 @@ export interface CleanupOptionsProps {
   /** Currently selected temperature (optional - only when temperature selection is enabled) */
   selectedTemperature?: number | null
   /** Callback when temperature changes (optional - only when temperature selection is enabled) */
-  onTemperatureChange?: (temp: number | null) => void
+  onTemperatureChange?: (temp: number | null, forceRerun?: boolean) => void
   /** Prompt name of the currently displayed cleanup (for copy metadata) */
   currentPromptName?: string | null
   /** Temperature of the currently displayed cleanup (for copy metadata) */
@@ -63,6 +63,10 @@ export function TranscriptHeader({
   const t = useTranslations("demo.cleanup")
   const [showModelMenu, setShowModelMenu] = useState(false)
   const [showLevelMenu, setShowLevelMenu] = useState(false)
+  // Long-press state for temperature chips
+  const [holdingTemp, setHoldingTemp] = useState<number | null | 'none'>('none')
+  const holdTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const didFireRef = useRef(false)
 
   const handleCopy = () => {
     const text = segments.map((s) => s[textKey]).join("\n\n")
@@ -278,23 +282,46 @@ export function TranscriptHeader({
                 c.status === 'completed'
               )
               const isSelected = cleanupOptions.selectedTemperature === temp
+              const isHolding = holdingTemp === temp
               return (
                 <button
                   key={temp ?? 'null'}
-                  onClick={() => !cleanupOptions.isProcessing && cleanupOptions.onTemperatureChange!(temp)}
+                  onPointerDown={() => {
+                    if (cleanupOptions.isProcessing) return
+                    didFireRef.current = false
+                    setHoldingTemp(temp)
+                    holdTimerRef.current = setTimeout(() => {
+                      didFireRef.current = true
+                      cleanupOptions.onTemperatureChange!(temp, true)
+                      setHoldingTemp('none')
+                    }, 2000)
+                  }}
+                  onPointerUp={() => {
+                    if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
+                    holdTimerRef.current = null
+                    if (!didFireRef.current && !cleanupOptions.isProcessing) {
+                      cleanupOptions.onTemperatureChange!(temp)
+                    }
+                    setHoldingTemp('none')
+                  }}
+                  onPointerLeave={() => {
+                    if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
+                    holdTimerRef.current = null
+                    setHoldingTemp('none')
+                  }}
                   disabled={cleanupOptions.isProcessing}
                   className={`px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 whitespace-nowrap transition-all ${
-                    cleanupOptions.isProcessing
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
+                    cleanupOptions.isProcessing ? "opacity-50 cursor-not-allowed" : ""
                   } ${
-                    isSelected
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground"
+                    isHolding
+                      ? "ring-2 ring-primary bg-primary/20"
+                      : isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {temp === null ? t("temperatureDefault") : temp}
-                  {isCached && <Check className="w-2.5 h-2.5 text-green-500 flex-shrink-0" />}
+                  {isCached && !isHolding && <Check className="w-2.5 h-2.5 text-green-500 flex-shrink-0" />}
                 </button>
               )
             })}
