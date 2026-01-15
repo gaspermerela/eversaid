@@ -3,6 +3,7 @@ import { renderHook, act } from '@testing-library/react'
 import { useDemoCleanupTrigger } from './useDemoCleanupTrigger'
 import * as api from './api'
 import type { EntrySummary } from './types'
+import { DEFAULT_CLEANUP_LEVEL, getDefaultModelForLevel } from '@/lib/level-config'
 
 // Mock the API module
 vi.mock('./api', () => ({
@@ -238,8 +239,8 @@ describe('useDemoCleanupTrigger', () => {
       )
 
       expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-123', {
-        cleanupType: 'corrected-readable',
-        llmModel: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+        cleanupType: DEFAULT_CLEANUP_LEVEL,
+        llmModel: getDefaultModelForLevel(DEFAULT_CLEANUP_LEVEL),
       })
     })
 
@@ -625,12 +626,12 @@ describe('useDemoCleanupTrigger', () => {
 
       expect(api.triggerCleanup).toHaveBeenCalledTimes(2)
       expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-123', {
-        cleanupType: 'corrected-readable',
-        llmModel: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+        cleanupType: DEFAULT_CLEANUP_LEVEL,
+        llmModel: getDefaultModelForLevel(DEFAULT_CLEANUP_LEVEL),
       })
       expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-456', {
-        cleanupType: 'corrected-readable',
-        llmModel: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+        cleanupType: DEFAULT_CLEANUP_LEVEL,
+        llmModel: getDefaultModelForLevel(DEFAULT_CLEANUP_LEVEL),
       })
       expect(result.current.isProcessing).toBe(true)
     })
