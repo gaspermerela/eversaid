@@ -3,19 +3,19 @@ import type { ModelInfo } from '@/features/transcription/types'
 // Models allowed for cleanup
 export const CLEANUP_ALLOWED_MODELS: string[] = [
   'llama-3.3-70b-versatile',
-  'meta-llama/llama-4-maverick-17b-128e-instruct',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
-  'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
+  // 'meta-llama/llama-4-maverick-17b-128e-instruct',
+  // 'meta-llama/llama-4-scout-17b-16e-instruct',
+  // 'openai/gpt-oss-120b',
+  // 'openai/gpt-oss-20b',
 ]
 
 // Models allowed for analysis (separate config)
 export const ANALYSIS_ALLOWED_MODELS: string[] = [
   'llama-3.3-70b-versatile',
   'meta-llama/llama-4-maverick-17b-128e-instruct',
-  'meta-llama/llama-4-scout-17b-16e-instruct',
+  // 'meta-llama/llama-4-scout-17b-16e-instruct',
   'openai/gpt-oss-120b',
-  'openai/gpt-oss-20b',
+  // 'openai/gpt-oss-20b',
 ]
 
 // Display name overrides (model id -> display name)

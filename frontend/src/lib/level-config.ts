@@ -3,14 +3,14 @@ import type { CleanupType } from '@/features/transcription/types'
 // Cleanup levels shown in the UI (order matters for dropdown)
 export const CLEANUP_LEVELS: CleanupType[] = [
   'corrected',
-  'corrected-readable',
+  // 'corrected-readable',
   // 'corrected-readable-v2',
   // 'corrected-readable-v3',
   // 'verbatim' and 'formal' not included in UI for now
 ]
 
 // Default cleanup level for new entries
-export const DEFAULT_CLEANUP_LEVEL: CleanupType = 'corrected-readable'
+export const DEFAULT_CLEANUP_LEVEL: CleanupType = 'corrected'
 
 // Default LLM model for each cleanup level
 export const CLEANUP_LEVEL_DEFAULT_MODELS: Partial<Record<CleanupType, string>> = {
