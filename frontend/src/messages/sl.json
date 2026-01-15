@@ -302,6 +302,7 @@
         "formal": "Formalno"
       },
       "copy": "Kopiraj",
+      "copySuccess": "Kopirano v odložišče",
       "modelChangeFailed": "Čiščenje z izbranim modelom ni uspelo. Poskusite znova.",
       "levelChangeFailed": "Sprememba ravni čiščenja ni uspela. Poskusite znova.",
       "temperatureChangeFailed": "Sprememba ustvarjalnosti ni uspela. Poskusite znova.",

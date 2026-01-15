@@ -80,6 +80,10 @@ export interface UseTranscriptionReturn {
   cleanupModelName: string | null
   /** Cleanup type of the current cleanup result (e.g., 'corrected', 'corrected-readable') */
   cleanupTypeName: string | null
+  /** Prompt name used for the current cleanup result (e.g., 'sl-corrected-readable-v2-multi-v1') */
+  cleanupPromptName: string | null
+  /** Temperature used for the current cleanup result */
+  cleanupTemperature: number | null
   /** Current analysis ID (for polling analysis results) */
   analysisId: string | null
   /** All analyses for this entry (for client-side caching by profile) */
@@ -296,6 +300,8 @@ export function useTranscription(
   const [cleanupId, setCleanupId] = useState<string | null>(null)
   const [cleanupModelName, setCleanupModelName] = useState<string | null>(null)
   const [cleanupTypeName, setCleanupTypeName] = useState<string | null>(null)
+  const [cleanupPromptName, setCleanupPromptName] = useState<string | null>(null)
+  const [cleanupTemperature, setCleanupTemperature] = useState<number | null>(null)
   const [analysisId, setAnalysisId] = useState<string | null>(null)
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([])
   const [rateLimits, setRateLimits] = useState<RateLimitInfo | null>(null)
@@ -570,6 +576,8 @@ export function useTranscription(
                 // Store the model and type used for this cleanup
                 setCleanupModelName(getFullModelId(cleanedEntry.llm_provider, cleanedEntry.llm_model))
                 setCleanupTypeName(cleanedEntry.cleanup_type || null)
+                setCleanupPromptName(cleanedEntry.prompt_name || null)
+                setCleanupTemperature(cleanedEntry.temperature ?? null)
 
                 // Transform and set segments - prefer user-edited version if available
                 const rawSegments = transcriptionStatus.segments || []
@@ -728,6 +736,8 @@ export function useTranscription(
         setCleanupId(cleanupJob.id)
         setCleanupModelName(null) // Clear until new cleanup completes
         setCleanupTypeName(null)
+        setCleanupPromptName(null)
+        setCleanupTemperature(null)
 
         // Poll for completion (this will reload entry when done)
         await new Promise<void>((resolve, reject) => {
@@ -1023,6 +1033,8 @@ export function useTranscription(
         setCleanupId(cleanupData.id)
         setCleanupModelName(getFullModelId(cleanupData.llm_provider, cleanupData.llm_model))
         setCleanupTypeName(cleanupData.cleanup_type || null)
+        setCleanupPromptName(cleanupData.prompt_name || null)
+        setCleanupTemperature(cleanupData.temperature ?? null)
         // Set all analyses for client-side caching by profile
         const allAnalyses = entryDetails.analyses || []
         setAnalyses(allAnalyses)
@@ -1077,6 +1089,8 @@ export function useTranscription(
     setCleanupId(null)
     setCleanupModelName(null)
     setCleanupTypeName(null)
+    setCleanupPromptName(null)
+    setCleanupTemperature(null)
     setAnalysisId(null)
     setAnalyses([])
     setRateLimits(null)
@@ -1173,6 +1187,8 @@ export function useTranscription(
       setCleanupId(cleanup.id)
       setCleanupModelName(getFullModelId(cleanup.llm_provider, cleanup.llm_model))
       setCleanupTypeName(cleanup.cleanup_type || null)
+      setCleanupPromptName(cleanup.prompt_name || null)
+      setCleanupTemperature(cleanup.temperature ?? null)
 
       console.log("[loadCleanupData] Cleanup loaded successfully")
     },
@@ -1189,6 +1205,8 @@ export function useTranscription(
     cleanupId,
     cleanupModelName,
     cleanupTypeName,
+    cleanupPromptName,
+    cleanupTemperature,
     analysisId,
     analyses,
     rateLimits,

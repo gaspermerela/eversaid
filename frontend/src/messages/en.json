@@ -302,6 +302,7 @@
         "formal": "Formal"
       },
       "copy": "Copy",
+      "copySuccess": "Copied to clipboard",
       "modelChangeFailed": "Failed to reprocess with selected model. Please try again.",
       "levelChangeFailed": "Failed to change cleanup level. Please try again.",
       "temperatureChangeFailed": "Failed to change creativity. Please try again.",

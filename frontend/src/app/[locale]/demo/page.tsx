@@ -1156,6 +1156,8 @@ function DemoPageContent() {
                   onLevelChange: handleCleanupLevelChange,
                   cachedCleanups: cleanupCache,
                   hasManualSelection: hasManualCleanupModelSelection,
+                  currentPromptName: transcription.cleanupPromptName,
+                  currentTemperature: transcription.cleanupTemperature,
                   ...(isTemperatureSelectionEnabled && {
                     selectedTemperature: selectedCleanupTemp,
                     onTemperatureChange: handleCleanupTempChange,

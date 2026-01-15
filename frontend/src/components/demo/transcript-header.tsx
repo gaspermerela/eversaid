@@ -4,6 +4,7 @@ import type { Segment } from "@/components/demo/types"
 import type { ModelInfo, CleanupType, CleanupSummary } from "@/features/transcription/types"
 import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check, Medal } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { toast } from "sonner"
 import { CLEANUP_LEVELS, CLEANUP_TEMPERATURES, getDefaultModelForLevel } from "@/lib/level-config"
 
 export interface CleanupOptionsProps {
@@ -27,6 +28,10 @@ export interface CleanupOptionsProps {
   selectedTemperature?: number | null
   /** Callback when temperature changes (optional - only when temperature selection is enabled) */
   onTemperatureChange?: (temp: number | null) => void
+  /** Prompt name of the currently displayed cleanup (for copy metadata) */
+  currentPromptName?: string | null
+  /** Temperature of the currently displayed cleanup (for copy metadata) */
+  currentTemperature?: number | null
 }
 
 export interface TranscriptHeaderProps {
@@ -61,7 +66,28 @@ export function TranscriptHeader({
 
   const handleCopy = () => {
     const text = segments.map((s) => s[textKey]).join("\n\n")
+
+    // Feature flag: add metadata header when copying cleaned text
+    const isCopyMetadataEnabled = process.env.NEXT_PUBLIC_ENABLE_COPY_METADATA === 'true'
+
+    if (isCopyMetadataEnabled && textKey === 'cleanedText' && cleanupOptions?.currentPromptName) {
+      // Get model display name
+      const modelName = cleanupOptions.models.find(m => m.id === cleanupOptions.selectedModel)?.name
+        || cleanupOptions.selectedModel
+
+      // Format temperature from the actual cleanup
+      const tempStr = cleanupOptions.currentTemperature === null || cleanupOptions.currentTemperature === undefined
+        ? 'default'
+        : cleanupOptions.currentTemperature.toString()
+
+      const header = `[${modelName} | ${cleanupOptions.currentPromptName} | temp=${tempStr}]`
+      navigator.clipboard.writeText(`${header}\n\n${text}`)
+      toast.success(t("copySuccess"))
+      return
+    }
+
     navigator.clipboard.writeText(text)
+    toast.success(t("copySuccess"))
   }
 
   const selectedModelName = cleanupOptions?.models.find(m => m.id === cleanupOptions.selectedModel)?.name
