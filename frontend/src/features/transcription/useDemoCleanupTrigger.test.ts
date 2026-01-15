@@ -237,7 +237,10 @@ describe('useDemoCleanupTrigger', () => {
         })
       )
 
-      expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-123')
+      expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-123', {
+        cleanupType: 'corrected-readable',
+        llmModel: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      })
     })
 
     it('triggers cleanup for demo entry with processing cleanup', async () => {
@@ -621,8 +624,14 @@ describe('useDemoCleanupTrigger', () => {
       )
 
       expect(api.triggerCleanup).toHaveBeenCalledTimes(2)
-      expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-123')
-      expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-456')
+      expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-123', {
+        cleanupType: 'corrected-readable',
+        llmModel: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      })
+      expect(api.triggerCleanup).toHaveBeenCalledWith('transcription-456', {
+        cleanupType: 'corrected-readable',
+        llmModel: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+      })
       expect(result.current.isProcessing).toBe(true)
     })
   })

@@ -223,6 +223,7 @@ export interface CleanedEntry {
   prompt_template_id?: number | null
   prompt_name?: string | null
   prompt_description?: string | null
+  cleanup_type?: string | null
   cleanup_data_edited: CleanedSegment[] | null
   user_edited_at?: string | null
   cleaned_segments?: CleanedSegment[] | null

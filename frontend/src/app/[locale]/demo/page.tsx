@@ -741,6 +741,13 @@ function DemoPageContent() {
     }
   }, [transcription.cleanupModelName])
 
+  // Sync cleanup level selection with actual level used (when loading entry)
+  useEffect(() => {
+    if (transcription.cleanupTypeName) {
+      setSelectedCleanupLevel(transcription.cleanupTypeName as CleanupType)
+    }
+  }, [transcription.cleanupTypeName])
+
   // Sync analysis model selection with actual model used (when loading entry)
   useEffect(() => {
     if (analysisHook.currentAnalysisModelName) {

@@ -10,6 +10,7 @@
 import { useRef, useEffect, useState, useCallback } from "react"
 import { triggerCleanup, getCleanedEntry, triggerAnalysis } from "./api"
 import type { EntrySummary } from "./types"
+import { DEFAULT_CLEANUP_LEVEL, getDefaultModelForLevel } from "@/lib/level-config"
 
 const POLL_INTERVAL_MS = 2000
 
@@ -180,10 +181,13 @@ export function useDemoCleanupTrigger(
 
       try {
         console.log(
-          `[useDemoCleanupTrigger] Triggering cleanup for entry ${entry.id} (transcription ${transcriptionId})`
+          `[useDemoCleanupTrigger] Triggering cleanup for entry ${entry.id} (transcription ${transcriptionId}) with level ${DEFAULT_CLEANUP_LEVEL}`
         )
 
-        const { data: cleanupJob } = await triggerCleanup(transcriptionId)
+        const { data: cleanupJob } = await triggerCleanup(transcriptionId, {
+          cleanupType: DEFAULT_CLEANUP_LEVEL,
+          llmModel: getDefaultModelForLevel(DEFAULT_CLEANUP_LEVEL),
+        })
         console.log(
           `[useDemoCleanupTrigger] Cleanup triggered for entry ${entry.id}:`,
           cleanupJob.id

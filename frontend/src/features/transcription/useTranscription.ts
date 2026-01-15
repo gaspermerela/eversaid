@@ -78,6 +78,8 @@ export interface UseTranscriptionReturn {
   cleanupId: string | null
   /** Model name used for the current cleanup result */
   cleanupModelName: string | null
+  /** Cleanup type of the current cleanup result (e.g., 'corrected', 'corrected-readable') */
+  cleanupTypeName: string | null
   /** Current analysis ID (for polling analysis results) */
   analysisId: string | null
   /** All analyses for this entry (for client-side caching by profile) */
@@ -293,6 +295,7 @@ export function useTranscription(
   const [transcriptionId, setTranscriptionId] = useState<string | null>(null)
   const [cleanupId, setCleanupId] = useState<string | null>(null)
   const [cleanupModelName, setCleanupModelName] = useState<string | null>(null)
+  const [cleanupTypeName, setCleanupTypeName] = useState<string | null>(null)
   const [analysisId, setAnalysisId] = useState<string | null>(null)
   const [analyses, setAnalyses] = useState<AnalysisResult[]>([])
   const [rateLimits, setRateLimits] = useState<RateLimitInfo | null>(null)
@@ -564,8 +567,9 @@ export function useTranscription(
               const { data: cleanedEntry } = await getCleanedEntry(cleanupIdVal)
 
               if (cleanedEntry.status === "completed") {
-                // Store the model name used for this cleanup (reconstruct full ID)
+                // Store the model and type used for this cleanup
                 setCleanupModelName(getFullModelId(cleanedEntry.llm_provider, cleanedEntry.llm_model))
+                setCleanupTypeName(cleanedEntry.cleanup_type || null)
 
                 // Transform and set segments - prefer user-edited version if available
                 const rawSegments = transcriptionStatus.segments || []
@@ -723,6 +727,7 @@ export function useTranscription(
         const { data: cleanupJob } = await triggerCleanup(transcriptionId, options)
         setCleanupId(cleanupJob.id)
         setCleanupModelName(null) // Clear until new cleanup completes
+        setCleanupTypeName(null)
 
         // Poll for completion (this will reload entry when done)
         await new Promise<void>((resolve, reject) => {
@@ -1017,6 +1022,7 @@ export function useTranscription(
         setTranscriptionId(transcription.id || null)
         setCleanupId(cleanupData.id)
         setCleanupModelName(getFullModelId(cleanupData.llm_provider, cleanupData.llm_model))
+        setCleanupTypeName(cleanupData.cleanup_type || null)
         // Set all analyses for client-side caching by profile
         const allAnalyses = entryDetails.analyses || []
         setAnalyses(allAnalyses)
@@ -1070,6 +1076,7 @@ export function useTranscription(
     setTranscriptionId(null)
     setCleanupId(null)
     setCleanupModelName(null)
+    setCleanupTypeName(null)
     setAnalysisId(null)
     setAnalyses([])
     setRateLimits(null)
@@ -1165,6 +1172,7 @@ export function useTranscription(
       // Update cleanup state
       setCleanupId(cleanup.id)
       setCleanupModelName(getFullModelId(cleanup.llm_provider, cleanup.llm_model))
+      setCleanupTypeName(cleanup.cleanup_type || null)
 
       console.log("[loadCleanupData] Cleanup loaded successfully")
     },
@@ -1180,6 +1188,7 @@ export function useTranscription(
     transcriptionId,
     cleanupId,
     cleanupModelName,
+    cleanupTypeName,
     analysisId,
     analyses,
     rateLimits,
