@@ -115,6 +115,8 @@ function DemoPageContent() {
   const [selectedCleanupModel, setSelectedCleanupModel] = useState<string>('')
   const [selectedCleanupLevel, setSelectedCleanupLevel] = useState<CleanupType>('corrected')
   const [selectedAnalysisModel, setSelectedAnalysisModel] = useState<string>('')
+  // Track if user has manually selected a model (vs using defaults)
+  const [hasManualCleanupModelSelection, setHasManualCleanupModelSelection] = useState(false)
   // Cache of completed cleanups for indicator and avoiding re-processing
   const [cleanupCache, setCleanupCache] = useState<CleanupSummary[]>([])
 
@@ -548,6 +550,8 @@ function DemoPageContent() {
   const handleCleanupModelChange = useCallback(async (modelId: string) => {
     const previousModel = selectedCleanupModel
     setSelectedCleanupModel(modelId)
+    // Mark as manual selection so level changes don't override
+    setHasManualCleanupModelSelection(true)
     if (!transcription.transcriptionId || !transcription.entryId) return
 
     try {
@@ -587,13 +591,14 @@ function DemoPageContent() {
     setSelectedCleanupLevel(level)
     if (!transcription.transcriptionId || !transcription.entryId) return
 
-    // Get the default model for this level (switch to level's default when level changes)
-    const levelDefault = getDefaultModelForLevel(level)
-    const modelToUse = levelDefault || selectedCleanupModel
-
-    // Update selected model to the level's default (so UI reflects the model used)
-    if (levelDefault) {
-      setSelectedCleanupModel(levelDefault)
+    // Only switch to level default if user hasn't manually selected a model
+    let modelToUse = selectedCleanupModel
+    if (!hasManualCleanupModelSelection) {
+      const levelDefault = getDefaultModelForLevel(level)
+      if (levelDefault) {
+        modelToUse = levelDefault
+        setSelectedCleanupModel(levelDefault)
+      }
     }
 
     try {
@@ -625,7 +630,7 @@ function DemoPageContent() {
       setSelectedCleanupLevel(previousLevel)
       toast.error(t('demo.cleanup.levelChangeFailed'))
     }
-  }, [transcription, selectedCleanupModel, selectedCleanupLevel, cleanupCache, t])
+  }, [transcription, selectedCleanupModel, selectedCleanupLevel, cleanupCache, hasManualCleanupModelSelection, t])
 
   // Handler for analysis model change - auto-triggers re-analysis
   const handleAnalysisModelChange = useCallback(async (modelId: string) => {
@@ -746,6 +751,9 @@ function DemoPageContent() {
   // Stores full CleanupSummary array for exact matching by cleanup_type
   useEffect(() => {
     if (transcription.entryId) {
+      // Reset manual model selection when loading a new entry
+      // This allows defaults to be used again for fresh entries
+      setHasManualCleanupModelSelection(false)
       getCleanedEntries(transcription.entryId).then(({ data }) => {
         setCleanupCache(data)
         const completedCount = data.filter(c => c.status === 'completed').length
@@ -1089,6 +1097,7 @@ function DemoPageContent() {
                   onModelChange: handleCleanupModelChange,
                   onLevelChange: handleCleanupLevelChange,
                   cachedCleanups: cleanupCache,
+                  hasManualSelection: hasManualCleanupModelSelection,
                 }}
               />
             </ExpandableCard>
