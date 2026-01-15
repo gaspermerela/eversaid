@@ -297,6 +297,8 @@
         "verbatim": "Dobesedno",
         "corrected": "Popravljeno",
         "corrected-readable": "Berljivo",
+        "corrected-readable-v2": "Berljivo v2",
+        "corrected-readable-v3": "Berljivo v3",
         "formal": "Formalno"
       },
       "copy": "Kopiraj",

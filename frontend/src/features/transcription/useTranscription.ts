@@ -723,7 +723,6 @@ export function useTranscription(
         const { data: cleanupJob } = await triggerCleanup(transcriptionId, options)
         setCleanupId(cleanupJob.id)
         setCleanupModelName(null) // Clear until new cleanup completes
-        console.log("[reprocessCleanup] Cleanup triggered:", cleanupJob.id)
 
         // Poll for completion (this will reload entry when done)
         await new Promise<void>((resolve, reject) => {
@@ -732,11 +731,9 @@ export function useTranscription(
               const { data: cleanedEntry } = await getCleanedEntry(cleanupJob.id)
 
               if (cleanedEntry.status === "completed") {
-                console.log("[reprocessCleanup] Cleanup complete")
-                // Reload entry to get full data
-                if (loadEntryRef.current) {
-                  await loadEntryRef.current(entryId)
-                }
+                // Load the new cleanup data directly (NOT loadEntry which loads primary cleanup)
+                loadCleanupData(cleanedEntry)
+                setStatus("complete")
                 resolve()
               } else if (cleanedEntry.status === "failed") {
                 setError(cleanedEntry.error_message || "Cleanup failed")
@@ -1118,16 +1115,52 @@ export function useTranscription(
       // Get cleaned segments (prefer user edits over original cleaned)
       const cleanedSegments = cleanup.cleanup_data_edited || cleanup.cleaned_segments || []
 
-      // Update segments with new cleanup data
-      setSegments((prev) =>
-        prev.map((seg, index) => {
-          const cleanedSeg = cleanedSegments[index]
-          return {
-            ...seg,
-            cleanedText: cleanedSeg?.text || seg.rawText,
+      // Check if we have per-segment cleanup or just full-text cleanup
+      if (cleanedSegments.length > 0) {
+        // Per-segment cleanup: Update each segment by index
+        console.log("[loadCleanupData] Updating segments with per-segment cleanup")
+        setSegments((prev) =>
+          prev.map((seg, index) => {
+            const cleanedSeg = cleanedSegments[index]
+            return {
+              ...seg,
+              cleanedText: cleanedSeg?.text || seg.rawText,
+            }
+          })
+        )
+      } else if (cleanup.cleaned_text) {
+        // Full-text cleanup only (no per-segment data)
+        // Use the full cleaned text for all segments, preserving segment boundaries
+        console.log("[loadCleanupData] No per-segment cleanup, using full cleaned text")
+        console.log("[loadCleanupData] Warning: Per-segment cleanup unavailable, showing full cleaned text in all segments")
+
+        // For now, just update the first segment with the full text if we only have one segment
+        // This matches the fallback behavior in loadEntry
+        setSegments((prev) => {
+          if (prev.length === 1) {
+            return prev.map(seg => ({
+              ...seg,
+              cleanedText: cleanup.cleaned_text?.trim() || seg.rawText,
+            }))
           }
+          // Multiple segments but no per-segment cleanup: keep segments as-is (show raw text)
+          // This preserves the segment structure while indicating cleanup is unavailable
+          console.warn("[loadCleanupData] Multiple segments but no per-segment cleanup available")
+          return prev.map(seg => ({
+            ...seg,
+            cleanedText: seg.rawText,
+          }))
         })
-      )
+      } else {
+        // No cleanup data at all: fall back to raw text
+        console.warn("[loadCleanupData] No cleanup data available, falling back to raw text")
+        setSegments((prev) =>
+          prev.map((seg) => ({
+            ...seg,
+            cleanedText: seg.rawText,
+          }))
+        )
+      }
 
       // Update cleanup state
       setCleanupId(cleanup.id)
