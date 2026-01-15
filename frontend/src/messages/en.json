@@ -296,6 +296,7 @@
       "levels": {
         "verbatim": "Verbatim",
         "corrected": "Corrected",
+        "corrected-readable": "Readable",
         "formal": "Formal"
       },
       "copy": "Copy",

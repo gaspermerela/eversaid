@@ -78,7 +78,19 @@ export type { Segment, SpellcheckError, HistoryEntry, SegmentEditState } from "@
 /**
  * Cleanup type options for LLM text cleanup
  */
-export type CleanupType = 'verbatim' | 'corrected' | 'formal'
+export type CleanupType = 'verbatim' | 'corrected' | 'corrected-readable' | 'formal'
+
+/**
+ * Summary of a cleanup record (for cache indicator)
+ */
+export interface CleanupSummary {
+  id: string
+  llm_provider: string
+  llm_model: string
+  prompt_name: string // cleanup level (e.g., 'corrected', 'formal')
+  status: 'pending' | 'processing' | 'completed' | 'failed'
+  is_primary: boolean
+}
 
 /**
  * Options for uploading and transcribing audio

@@ -1,8 +1,8 @@
 "use client"
 import { useState } from "react"
 import type { Segment } from "@/components/demo/types"
-import type { ModelInfo, CleanupType } from "@/features/transcription/types"
-import { Eye, EyeOff, Copy, X, ChevronDown, Loader2 } from "lucide-react"
+import type { ModelInfo, CleanupType, CleanupSummary } from "@/features/transcription/types"
+import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check } from "lucide-react"
 import { useTranslations } from "next-intl"
 
 export interface CleanupOptionsProps {
@@ -18,6 +18,8 @@ export interface CleanupOptionsProps {
   onModelChange: (modelId: string) => void
   /** Callback when level changes */
   onLevelChange: (level: CleanupType) => void
+  /** Array of existing cleanups for cache indicator */
+  cachedCleanups?: CleanupSummary[]
 }
 
 export interface TranscriptHeaderProps {
@@ -34,7 +36,7 @@ export interface TranscriptHeaderProps {
   cleanupOptions?: CleanupOptionsProps
 }
 
-const CLEANUP_LEVEL_IDS: CleanupType[] = ["verbatim", "corrected", "formal"]
+const CLEANUP_LEVEL_IDS: CleanupType[] = ["corrected", "corrected-readable"]
 
 export function TranscriptHeader({
   title,
@@ -100,20 +102,30 @@ export function TranscriptHeader({
                   </button>
                   {showModelMenu && (
                     <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[160px]">
-                      {cleanupOptions.models.map((model) => (
-                        <button
-                          key={model.id}
-                          onClick={() => {
-                            cleanupOptions.onModelChange(model.id)
-                            setShowModelMenu(false)
-                          }}
-                          className={`block w-full px-3 py-2 text-left text-[11px] transition-colors hover:bg-muted ${
-                            cleanupOptions.selectedModel === model.id ? "bg-secondary font-medium" : ""
-                          }`}
-                        >
-                          {model.name}
-                        </button>
-                      ))}
+                      {cleanupOptions.models.map((model) => {
+                        // Check if cached, but "corrected" must not match "corrected-readable"
+                        const isCached = cleanupOptions.cachedCleanups?.some(c =>
+                          c.llm_model === model.id &&
+                          c.prompt_name?.includes(cleanupOptions.selectedLevel) &&
+                          !(cleanupOptions.selectedLevel === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
+                          c.status === 'completed'
+                        )
+                        return (
+                          <button
+                            key={model.id}
+                            onClick={() => {
+                              cleanupOptions.onModelChange(model.id)
+                              setShowModelMenu(false)
+                            }}
+                            className={`flex items-center justify-between w-full px-3 py-2 text-left text-[11px] transition-colors hover:bg-muted ${
+                              cleanupOptions.selectedModel === model.id ? "bg-secondary font-medium" : ""
+                            }`}
+                          >
+                            <span>{model.name}</span>
+                            {isCached && <Check className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                          </button>
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -138,20 +150,30 @@ export function TranscriptHeader({
                 </button>
                 {showLevelMenu && (
                   <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[100px]">
-                    {CLEANUP_LEVEL_IDS.map((levelId) => (
-                      <button
-                        key={levelId}
-                        onClick={() => {
-                          cleanupOptions.onLevelChange(levelId)
-                          setShowLevelMenu(false)
-                        }}
-                        className={`block w-full px-3 py-2 text-left text-[11px] transition-colors hover:bg-muted ${
-                          cleanupOptions.selectedLevel === levelId ? "bg-secondary font-medium" : ""
-                        }`}
-                      >
-                        {t(`levels.${levelId}`)}
-                      </button>
-                    ))}
+                    {CLEANUP_LEVEL_IDS.map((levelId) => {
+                      // Check if cached, but "corrected" must not match "corrected-readable"
+                      const isCached = cleanupOptions.cachedCleanups?.some(c =>
+                        c.llm_model === cleanupOptions.selectedModel &&
+                        c.prompt_name?.includes(levelId) &&
+                        !(levelId === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
+                        c.status === 'completed'
+                      )
+                      return (
+                        <button
+                          key={levelId}
+                          onClick={() => {
+                            cleanupOptions.onLevelChange(levelId)
+                            setShowLevelMenu(false)
+                          }}
+                          className={`flex items-center justify-between w-full px-3 py-2 text-left text-[11px] transition-colors hover:bg-muted ${
+                            cleanupOptions.selectedLevel === levelId ? "bg-secondary font-medium" : ""
+                          }`}
+                        >
+                          <span>{t(`levels.${levelId}`)}</span>
+                          {isCached && <Check className="w-3 h-3 text-green-500 flex-shrink-0" />}
+                        </button>
+                      )
+                    })}
                   </div>
                 )}
               </div>

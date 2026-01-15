@@ -29,15 +29,15 @@ import { RecordingModal } from "@/components/demo/recording-modal"
 import { useTranscription } from "@/features/transcription/useTranscription"
 import { useVoiceRecorder } from "@/features/transcription/useVoiceRecorder"
 import { useRateLimits } from "@/features/transcription/useRateLimits"
-import { ApiError, type ModelInfo, type CleanupType } from "@/features/transcription/types"
+import { ApiError, type ModelInfo, type CleanupType, type CleanupSummary } from "@/features/transcription/types"
 import { useFeedback } from "@/features/transcription/useFeedback"
 import { useEntries } from "@/features/transcription/useEntries"
 import { useAudioPlayer } from "@/features/transcription/useAudioPlayer"
 import { useWordHighlight } from "@/features/transcription/useWordHighlight"
 import { useAnalysis } from "@/features/transcription/useAnalysis"
 import { useProcessingStages } from "@/features/transcription/useProcessingStages"
-import { getEntryAudioUrl, getOptions } from "@/features/transcription/api"
-import { getCleanupModels, getAnalysisModels } from "@/lib/model-config"
+import { getEntryAudioUrl, getOptions, getCleanedEntries, getCleanedEntry } from "@/features/transcription/api"
+import { getCleanupModels, getAnalysisModels, getDefaultModelForLevel } from "@/lib/model-config"
 import { toast } from "sonner"
 import { useDemoCleanupTrigger } from "@/features/transcription/useDemoCleanupTrigger"
 import { ProcessingStages } from "@/components/demo/processing-stages"
@@ -115,6 +115,8 @@ function DemoPageContent() {
   const [selectedCleanupModel, setSelectedCleanupModel] = useState<string>('')
   const [selectedCleanupLevel, setSelectedCleanupLevel] = useState<CleanupType>('corrected')
   const [selectedAnalysisModel, setSelectedAnalysisModel] = useState<string>('')
+  // Cache of completed cleanups for indicator and avoiding re-processing
+  const [cleanupCache, setCleanupCache] = useState<CleanupSummary[]>([])
 
   // Editing State
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null)
@@ -542,43 +544,86 @@ function DemoPageContent() {
     // No segment switching - real data comes from API
   }, [])
 
-  // Handler for cleanup model change - auto-triggers re-cleanup
+  // Handler for cleanup model change - uses cached cleanup if available
   const handleCleanupModelChange = useCallback(async (modelId: string) => {
     const previousModel = selectedCleanupModel
     setSelectedCleanupModel(modelId)
-    if (!transcription.transcriptionId) return
+    if (!transcription.transcriptionId || !transcription.entryId) return
 
     try {
+      // Check if cleanup already exists (match by model and level in prompt_name)
+      // Note: "corrected" must not match "corrected-readable"
+      const existing = cleanupCache.find(c =>
+        c.llm_model === modelId &&
+        c.prompt_name?.includes(selectedCleanupLevel) &&
+        !(selectedCleanupLevel === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
+        c.status === 'completed'
+      )
+
+      if (existing) {
+        // CACHED: Fetch existing cleanup (no LLM call)
+        const { data: cleanup } = await getCleanedEntry(existing.id)
+        transcription.loadCleanupData(cleanup)
+        return
+      }
+
+      // NOT CACHED: Trigger new cleanup
       await transcription.reprocessCleanup({
         cleanupType: selectedCleanupLevel,
         llmModel: modelId,
       })
+      // Refresh cache after completion
+      const { data: updatedCleanups } = await getCleanedEntries(transcription.entryId)
+      setCleanupCache(updatedCleanups)
     } catch (err) {
       console.error('Re-cleanup failed:', err)
       // Revert to previous model and show error
       setSelectedCleanupModel(previousModel)
       toast.error(t('demo.cleanup.modelChangeFailed'))
     }
-  }, [transcription, selectedCleanupLevel, selectedCleanupModel, t])
+  }, [transcription, selectedCleanupLevel, selectedCleanupModel, cleanupCache, t])
 
-  // Handler for cleanup level change - auto-triggers re-cleanup
+  // Handler for cleanup level change - uses cached cleanup if available
   const handleCleanupLevelChange = useCallback(async (level: CleanupType) => {
     const previousLevel = selectedCleanupLevel
     setSelectedCleanupLevel(level)
-    if (!transcription.transcriptionId) return
+    if (!transcription.transcriptionId || !transcription.entryId) return
+
+    // Use selected model or per-level default
+    const modelToUse = selectedCleanupModel || getDefaultModelForLevel(level)
 
     try {
+      // Check if cleanup already exists (match by model and level in prompt_name)
+      // Note: "corrected" must not match "corrected-readable"
+      const existing = modelToUse ? cleanupCache.find(c =>
+        c.llm_model === modelToUse &&
+        c.prompt_name?.includes(level) &&
+        !(level === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
+        c.status === 'completed'
+      ) : null
+
+      if (existing) {
+        // CACHED: Fetch existing cleanup (no LLM call)
+        const { data: cleanup } = await getCleanedEntry(existing.id)
+        transcription.loadCleanupData(cleanup)
+        return
+      }
+
+      // NOT CACHED: Trigger new cleanup
       await transcription.reprocessCleanup({
         cleanupType: level,
-        llmModel: selectedCleanupModel || undefined,
+        llmModel: modelToUse,
       })
+      // Refresh cache after completion
+      const { data: updatedCleanups } = await getCleanedEntries(transcription.entryId)
+      setCleanupCache(updatedCleanups)
     } catch (err) {
       console.error('Re-cleanup failed:', err)
       // Revert to previous level and show error
       setSelectedCleanupLevel(previousLevel)
       toast.error(t('demo.cleanup.levelChangeFailed'))
     }
-  }, [transcription, selectedCleanupModel, selectedCleanupLevel, t])
+  }, [transcription, selectedCleanupModel, selectedCleanupLevel, cleanupCache, t])
 
   // Handler for analysis model change - auto-triggers re-analysis
   const handleAnalysisModelChange = useCallback(async (modelId: string) => {
@@ -694,6 +739,23 @@ function DemoPageContent() {
       setSelectedAnalysisModel(analysisHook.currentAnalysisModelName)
     }
   }, [analysisHook.currentAnalysisModelName])
+
+  // Build cleanup cache when entry loads (for cache indicator)
+  // Stores full CleanupSummary array for flexible matching by prompt_name.includes(level)
+  useEffect(() => {
+    if (transcription.entryId) {
+      getCleanedEntries(transcription.entryId).then(({ data }) => {
+        setCleanupCache(data)
+        const completedCount = data.filter(c => c.status === 'completed').length
+        console.log('[Demo] Cleanup cache built:', completedCount, 'completed entries')
+      }).catch((err) => {
+        console.error('Failed to fetch cleanups for cache:', err)
+      })
+    } else {
+      // Clear cache when no entry is loaded
+      setCleanupCache([])
+    }
+  }, [transcription.entryId])
 
   // Auto-scroll to active segment during playback
   useEffect(() => {
@@ -1024,6 +1086,7 @@ function DemoPageContent() {
                   isProcessing: transcription.status === 'cleaning',
                   onModelChange: handleCleanupModelChange,
                   onLevelChange: handleCleanupLevelChange,
+                  cachedCleanups: cleanupCache,
                 }}
               />
             </ExpandableCard>

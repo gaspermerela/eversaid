@@ -13,6 +13,7 @@ import type {
   ProcessingStatus,
   ApiSegment,
   CleanedSegment,
+  CleanedEntry,
   RateLimitInfo,
   AnalysisResult,
   TranscriptionWord,
@@ -182,6 +183,11 @@ export interface UseTranscriptionReturn {
    * Polls for completion and reloads entry when done.
    */
   reprocessCleanup: (options?: { cleanupType?: CleanupType; llmModel?: string }) => Promise<void>
+
+  /**
+   * Load cleanup data directly (for switching to cached cleanup without LLM call)
+   */
+  loadCleanupData: (cleanup: CleanedEntry) => void
 }
 
 /**
@@ -1101,6 +1107,37 @@ export function useTranscription(
     }
   }, [])
 
+  /**
+   * Load cleanup data directly (for switching to cached cleanup without LLM call)
+   * Updates segments with the cleanup's cleaned text
+   */
+  const loadCleanupData = useCallback(
+    (cleanup: CleanedEntry) => {
+      console.log("[loadCleanupData] Loading cleanup:", cleanup.id)
+
+      // Get cleaned segments (prefer user edits over original cleaned)
+      const cleanedSegments = cleanup.cleanup_data_edited || cleanup.cleaned_segments || []
+
+      // Update segments with new cleanup data
+      setSegments((prev) =>
+        prev.map((seg, index) => {
+          const cleanedSeg = cleanedSegments[index]
+          return {
+            ...seg,
+            cleanedText: cleanedSeg?.text || seg.rawText,
+          }
+        })
+      )
+
+      // Update cleanup state
+      setCleanupId(cleanup.id)
+      setCleanupModelName(getFullModelId(cleanup.llm_provider, cleanup.llm_model))
+
+      console.log("[loadCleanupData] Cleanup loaded successfully")
+    },
+    []
+  )
+
   return {
     segments: segmentsWithTime,
     status,
@@ -1130,6 +1167,7 @@ export function useTranscription(
     reset,
     fetchRateLimits,
     reprocessCleanup,
+    loadCleanupData,
   }
 }
 
