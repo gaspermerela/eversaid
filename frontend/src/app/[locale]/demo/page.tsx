@@ -53,6 +53,28 @@ const isModelSelectionEnabled = process.env.NEXT_PUBLIC_ENABLE_MODEL_SELECTION =
 // Feature flag for temperature selection UI (controlled via NEXT_PUBLIC_ENABLE_TEMPERATURE_SELECTION env var)
 const isTemperatureSelectionEnabled = process.env.NEXT_PUBLIC_ENABLE_TEMPERATURE_SELECTION === 'true'
 
+// LocalStorage key for persisting model selection per-entry
+const STORAGE_KEY_MODEL_SELECTION = 'eversaid_model_selection'
+
+interface StoredEntryState {
+  entryId: string
+  model: string
+  hasManual: boolean
+  isExpanded?: boolean
+}
+
+function getStoredEntryState(): StoredEntryState | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_MODEL_SELECTION)
+    return stored ? JSON.parse(stored) : null
+  } catch { return null }
+}
+
+function storeEntryState(state: StoredEntryState) {
+  localStorage.setItem(STORAGE_KEY_MODEL_SELECTION, JSON.stringify(state))
+}
+
 // Mock spellcheck - in production, call a Slovenian spellcheck API
 // Kept for future use when spellcheck feature is implemented
 const _checkSpelling = (text: string): SpellcheckError[] => {
@@ -265,17 +287,31 @@ function DemoPageContent() {
     }
   }, [transcription.entryId, transcription.status, searchParams, router])
 
+  // Helper to set expanded state and persist it
+  const setExpandedAndPersist = useCallback((expanded: boolean) => {
+    setIsEditorExpanded(expanded)
+    if (transcription.entryId) {
+      const stored = getStoredEntryState()
+      storeEntryState({
+        entryId: transcription.entryId,
+        model: stored?.model || selectedCleanupModel,
+        hasManual: stored?.hasManual || hasManualCleanupModelSelection,
+        isExpanded: expanded,
+      })
+    }
+  }, [transcription.entryId, selectedCleanupModel, hasManualCleanupModelSelection])
+
   // ESC key handler to collapse editor
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isEditorExpanded && transcription.segments.length > 0) {
-        setIsEditorExpanded(false)
+        setExpandedAndPersist(false)
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [isEditorExpanded, transcription.segments.length])
+  }, [isEditorExpanded, transcription.segments.length, setExpandedAndPersist])
 
   // Height sync logic removed - moved to transcript-comparison-layout component
 
@@ -558,6 +594,10 @@ function DemoPageContent() {
     setSelectedCleanupModel(modelId)
     // Mark as manual selection so level changes don't override
     setHasManualCleanupModelSelection(true)
+    // Persist selection for this entry (survives refresh)
+    if (transcription.entryId) {
+      storeEntryState({ entryId: transcription.entryId, model: modelId, hasManual: true, isExpanded: isEditorExpanded })
+    }
     if (!transcription.transcriptionId || !transcription.entryId) return
 
     try {
@@ -810,15 +850,65 @@ function DemoPageContent() {
 
   // Build cleanup cache when entry loads (for cache indicator)
   // Stores full CleanupSummary array for exact matching by cleanup_type
+  // Also restores model selection from localStorage and loads matching cleanup if needed
   useEffect(() => {
     if (transcription.entryId) {
-      // Reset manual model selection when loading a new entry
-      // This allows defaults to be used again for fresh entries
-      setHasManualCleanupModelSelection(false)
-      getCleanedEntries(transcription.entryId).then(({ data }) => {
+      // Check for stored state for this entry (survives refresh)
+      const stored = getStoredEntryState()
+      const isSameEntry = stored && stored.entryId === transcription.entryId
+
+      if (isSameEntry && stored.hasManual) {
+        // Same entry after refresh - restore model selection
+        setSelectedCleanupModel(stored.model)
+        setHasManualCleanupModelSelection(true)
+      } else {
+        // Different entry - reset to defaults
+        setHasManualCleanupModelSelection(false)
+      }
+
+      // Restore fullscreen state (simple UI state, no data sync needed)
+      if (isSameEntry && stored.isExpanded) {
+        setIsEditorExpanded(true)
+      }
+
+      getCleanedEntries(transcription.entryId).then(async ({ data }) => {
         setCleanupCache(data)
         const completedCount = data.filter(c => c.status === 'completed').length
         console.log('[Demo] Cleanup cache built:', completedCount, 'completed entries')
+
+        // If we restored a model selection, check if it matches the currently displayed cleanup
+        if (isSameEntry && stored.hasManual && transcription.cleanupModelName) {
+          const restoredModel = stored.model
+          const currentModel = transcription.cleanupModelName
+          const currentLevel = transcription.cleanupTypeName || selectedCleanupLevel
+          const currentTemp = transcription.cleanupTemperature
+
+          console.log('[Demo] Restored model:', restoredModel, 'Current model:', currentModel)
+
+          // If models don't match, try to load the cached cleanup for the restored model
+          if (restoredModel !== currentModel) {
+            console.log('[Demo] Model mismatch after refresh, searching for cached cleanup...')
+            const matchingCleanup = data.find(c =>
+              c.llm_model === restoredModel &&
+              c.cleanup_type === currentLevel &&
+              (!isTemperatureSelectionEnabled || temperaturesMatch(c.temperature, currentTemp)) &&
+              c.status === 'completed'
+            )
+
+            if (matchingCleanup) {
+              console.log('[Demo] Found cached cleanup for restored model, loading:', matchingCleanup.id)
+              try {
+                const { data: cleanup } = await getCleanedEntry(matchingCleanup.id)
+                transcription.loadCleanupData(cleanup)
+              } catch (err) {
+                console.error('[Demo] Failed to load cached cleanup for restored model:', err)
+                // Fall back to current cleanup (already loaded)
+              }
+            } else {
+              console.log('[Demo] No cached cleanup found for restored model, keeping current cleanup')
+            }
+          }
+        }
       }).catch((err) => {
         console.error('Failed to fetch cleanups for cache:', err)
       })
@@ -826,7 +916,9 @@ function DemoPageContent() {
       // Clear cache when no entry is loaded
       setCleanupCache([])
     }
-  }, [transcription.entryId])
+  // Dependencies: re-run when entry changes or when cleanup metadata changes (after loadEntry completes)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transcription.entryId, transcription.cleanupModelName, transcription.cleanupTypeName])
 
   // Auto-scroll to active segment during playback
   useEffect(() => {
@@ -1148,8 +1240,8 @@ function DemoPageContent() {
                 activeWordIndex={wordHighlight.activeWordIndex}
                 isPlaying={audioPlayer.isPlaying}
                 isExpanded={isEditorExpanded}
-                onExpandToggle={() => setIsEditorExpanded(true)}
-                onClose={() => setIsEditorExpanded(false)}
+                onExpandToggle={() => setExpandedAndPersist(true)}
+                onClose={() => setExpandedAndPersist(false)}
                 cleanupOptions={{
                   models: cleanupModels,
                   selectedModel: selectedCleanupModel,
