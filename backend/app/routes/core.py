@@ -290,6 +290,32 @@ async def get_entry(
     return entry_data
 
 
+@router.get("/api/entries/{entry_id}/cleaned")
+async def list_cleaned_entries(
+    entry_id: str,
+    session: SessionModel = Depends(get_session),
+    core_api: CoreAPIClient = Depends(get_core_api),
+):
+    """List all cleanup records for an entry.
+
+    Returns all cleanups (not just the primary one) with model and level info,
+    enabling the frontend to show which model+level combinations are cached.
+    """
+    response = await core_api.request(
+        "GET",
+        f"/api/v1/entries/{entry_id}/cleaned",
+        session.access_token,
+    )
+
+    if response.status_code >= 400:
+        raise CoreAPIError(
+            status_code=response.status_code,
+            detail=response.text,
+        )
+
+    return response.json()
+
+
 @router.delete("/api/entries/{entry_id}")
 async def delete_entry(
     entry_id: str,

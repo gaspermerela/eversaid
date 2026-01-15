@@ -5,6 +5,7 @@ import type {
   AnalysisProfile,
   AnalysisResult,
   CleanedEntry,
+  CleanupSummary,
   CleanupType,
   EditedData,
   EntryDetails,
@@ -323,6 +324,15 @@ export async function deleteEntry(
  */
 export function getEntryAudioUrl(entryId: string): string {
   return `${API_BASE_URL}/api/entries/${entryId}/audio`
+}
+
+/**
+ * Get all cleanup records for an entry (for cache indicator)
+ */
+export async function getCleanedEntries(
+  entryId: string
+): Promise<{ data: CleanupSummary[]; rateLimitInfo: RateLimitInfo | null }> {
+  return request<CleanupSummary[]>(`/api/entries/${entryId}/cleaned`)
 }
 
 // =============================================================================

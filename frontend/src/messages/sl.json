@@ -296,6 +296,7 @@
       "levels": {
         "verbatim": "Dobesedno",
         "corrected": "Popravljeno",
+        "corrected-readable": "Berljivo",
         "formal": "Formalno"
       },
       "copy": "Kopiraj",
