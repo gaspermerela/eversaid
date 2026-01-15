@@ -589,8 +589,14 @@ function DemoPageContent() {
     setSelectedCleanupLevel(level)
     if (!transcription.transcriptionId || !transcription.entryId) return
 
-    // Use selected model or per-level default
-    const modelToUse = selectedCleanupModel || getDefaultModelForLevel(level)
+    // Get the default model for this level (switch to level's default when level changes)
+    const levelDefault = getDefaultModelForLevel(level)
+    const modelToUse = levelDefault || selectedCleanupModel
+
+    // Update selected model to the level's default (so UI reflects the model used)
+    if (levelDefault) {
+      setSelectedCleanupModel(levelDefault)
+    }
 
     try {
       // Check if cleanup already exists (match by model and level in prompt_name)

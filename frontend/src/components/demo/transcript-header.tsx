@@ -4,6 +4,7 @@ import type { Segment } from "@/components/demo/types"
 import type { ModelInfo, CleanupType, CleanupSummary } from "@/features/transcription/types"
 import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { getDefaultModelForLevel } from "@/lib/model-config"
 
 export interface CleanupOptionsProps {
   /** Available LLM models */
@@ -151,9 +152,10 @@ export function TranscriptHeader({
                 {showLevelMenu && (
                   <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[100px]">
                     {CLEANUP_LEVEL_IDS.map((levelId) => {
-                      // Check if cached, but "corrected" must not match "corrected-readable"
+                      // Check if cached using the default model for each level
+                      const defaultModelForLevel = getDefaultModelForLevel(levelId)
                       const isCached = cleanupOptions.cachedCleanups?.some(c =>
-                        c.llm_model === cleanupOptions.selectedModel &&
+                        c.llm_model === defaultModelForLevel &&
                         c.prompt_name?.includes(levelId) &&
                         !(levelId === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
                         c.status === 'completed'
