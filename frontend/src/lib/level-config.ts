@@ -32,3 +32,9 @@ export const CLEANUP_TEMPERATURES: (number | null)[] = [
 
 // Default temperature (null = not specified, API decides)
 export const DEFAULT_CLEANUP_TEMPERATURE: number | null = null
+
+/** Compare temperatures - null and 0 are equivalent (both mean API default) */
+export function temperaturesMatch(a: number | null | undefined, b: number | null | undefined): boolean {
+  const normalizeTemp = (t: number | null | undefined) => (t === null || t === undefined) ? 0 : t
+  return normalizeTemp(a) === normalizeTemp(b)
+}

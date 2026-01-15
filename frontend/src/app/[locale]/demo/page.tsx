@@ -38,7 +38,7 @@ import { useAnalysis } from "@/features/transcription/useAnalysis"
 import { useProcessingStages } from "@/features/transcription/useProcessingStages"
 import { getEntryAudioUrl, getOptions, getCleanedEntries, getCleanedEntry } from "@/features/transcription/api"
 import { getCleanupModels, getAnalysisModels } from "@/lib/model-config"
-import { DEFAULT_CLEANUP_LEVEL, DEFAULT_CLEANUP_TEMPERATURE, getDefaultModelForLevel } from "@/lib/level-config"
+import { DEFAULT_CLEANUP_LEVEL, DEFAULT_CLEANUP_TEMPERATURE, getDefaultModelForLevel, temperaturesMatch } from "@/lib/level-config"
 import { toast } from "sonner"
 import { useDemoCleanupTrigger } from "@/features/transcription/useDemoCleanupTrigger"
 import { ProcessingStages } from "@/components/demo/processing-stages"
@@ -566,7 +566,7 @@ function DemoPageContent() {
         c.llm_model === modelId &&
         c.cleanup_type === selectedCleanupLevel &&
         // Only match temperature when temperature selection is enabled
-        (!isTemperatureSelectionEnabled || c.temperature === selectedCleanupTemp) &&
+        (!isTemperatureSelectionEnabled || temperaturesMatch(c.temperature, selectedCleanupTemp)) &&
         c.status === 'completed'
       )
 
@@ -616,7 +616,7 @@ function DemoPageContent() {
         c.llm_model === modelToUse &&
         c.cleanup_type === level &&
         // Only match temperature when temperature selection is enabled
-        (!isTemperatureSelectionEnabled || c.temperature === selectedCleanupTemp) &&
+        (!isTemperatureSelectionEnabled || temperaturesMatch(c.temperature, selectedCleanupTemp)) &&
         c.status === 'completed'
       ) : null
 
@@ -655,7 +655,7 @@ function DemoPageContent() {
       const existing = cleanupCache.find(c =>
         c.llm_model === selectedCleanupModel &&
         c.cleanup_type === selectedCleanupLevel &&
-        c.temperature === temp &&
+        temperaturesMatch(c.temperature, temp) &&
         c.status === 'completed'
       )
 

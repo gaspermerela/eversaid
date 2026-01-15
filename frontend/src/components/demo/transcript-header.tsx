@@ -5,7 +5,7 @@ import type { ModelInfo, CleanupType, CleanupSummary } from "@/features/transcri
 import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check, Medal } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { toast } from "sonner"
-import { CLEANUP_LEVELS, CLEANUP_TEMPERATURES, getDefaultModelForLevel } from "@/lib/level-config"
+import { CLEANUP_LEVELS, CLEANUP_TEMPERATURES, getDefaultModelForLevel, temperaturesMatch } from "@/lib/level-config"
 
 export interface CleanupOptionsProps {
   /** Available LLM models */
@@ -143,7 +143,7 @@ export function TranscriptHeader({
                           c.llm_model === model.id &&
                           c.cleanup_type === cleanupOptions.selectedLevel &&
                           // Only match temperature when temperature selection is enabled
-                          (cleanupOptions.onTemperatureChange === undefined || c.temperature === cleanupOptions.selectedTemperature) &&
+                          (cleanupOptions.onTemperatureChange === undefined || temperaturesMatch(c.temperature, cleanupOptions.selectedTemperature)) &&
                           c.status === 'completed'
                         )
                         return (
@@ -199,7 +199,7 @@ export function TranscriptHeader({
                         c.llm_model === modelToCheck &&
                         c.cleanup_type === levelId &&
                         // Only match temperature when temperature selection is enabled
-                        (cleanupOptions.onTemperatureChange === undefined || c.temperature === cleanupOptions.selectedTemperature) &&
+                        (cleanupOptions.onTemperatureChange === undefined || temperaturesMatch(c.temperature, cleanupOptions.selectedTemperature)) &&
                         c.status === 'completed'
                       )
                       return (
@@ -274,7 +274,7 @@ export function TranscriptHeader({
               const isCached = cleanupOptions.cachedCleanups?.some(c =>
                 c.llm_model === cleanupOptions.selectedModel &&
                 c.cleanup_type === cleanupOptions.selectedLevel &&
-                c.temperature === temp &&
+                temperaturesMatch(c.temperature, temp) &&
                 c.status === 'completed'
               )
               const isSelected = cleanupOptions.selectedTemperature === temp
