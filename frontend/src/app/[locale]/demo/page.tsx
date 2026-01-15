@@ -38,7 +38,7 @@ import { useAnalysis } from "@/features/transcription/useAnalysis"
 import { useProcessingStages } from "@/features/transcription/useProcessingStages"
 import { getEntryAudioUrl, getOptions, getCleanedEntries, getCleanedEntry } from "@/features/transcription/api"
 import { getCleanupModels, getAnalysisModels } from "@/lib/model-config"
-import { DEFAULT_CLEANUP_LEVEL, getDefaultModelForLevel } from "@/lib/level-config"
+import { DEFAULT_CLEANUP_LEVEL, DEFAULT_CLEANUP_TEMPERATURE, getDefaultModelForLevel } from "@/lib/level-config"
 import { toast } from "sonner"
 import { useDemoCleanupTrigger } from "@/features/transcription/useDemoCleanupTrigger"
 import { ProcessingStages } from "@/components/demo/processing-stages"
@@ -49,6 +49,9 @@ let sessionInitPromise: Promise<void> | null = null
 
 // Feature flag for model selection UI (controlled via NEXT_PUBLIC_ENABLE_MODEL_SELECTION env var)
 const isModelSelectionEnabled = process.env.NEXT_PUBLIC_ENABLE_MODEL_SELECTION === 'true'
+
+// Feature flag for temperature selection UI (controlled via NEXT_PUBLIC_ENABLE_TEMPERATURE_SELECTION env var)
+const isTemperatureSelectionEnabled = process.env.NEXT_PUBLIC_ENABLE_TEMPERATURE_SELECTION === 'true'
 
 // Mock spellcheck - in production, call a Slovenian spellcheck API
 // Kept for future use when spellcheck feature is implemented
@@ -120,6 +123,8 @@ function DemoPageContent() {
   const [hasManualCleanupModelSelection, setHasManualCleanupModelSelection] = useState(false)
   // Cache of completed cleanups for indicator and avoiding re-processing
   const [cleanupCache, setCleanupCache] = useState<CleanupSummary[]>([])
+  // Temperature selection state (only used when isTemperatureSelectionEnabled is true)
+  const [selectedCleanupTemp, setSelectedCleanupTemp] = useState<number | null>(DEFAULT_CLEANUP_TEMPERATURE)
 
   // Editing State
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null)
@@ -556,10 +561,12 @@ function DemoPageContent() {
     if (!transcription.transcriptionId || !transcription.entryId) return
 
     try {
-      // Check if cleanup already exists (exact match on cleanup_type)
+      // Check if cleanup already exists (exact match on cleanup_type, and temperature if enabled)
       const existing = cleanupCache.find(c =>
         c.llm_model === modelId &&
         c.cleanup_type === selectedCleanupLevel &&
+        // Only match temperature when temperature selection is enabled
+        (!isTemperatureSelectionEnabled || c.temperature === selectedCleanupTemp) &&
         c.status === 'completed'
       )
 
@@ -574,6 +581,7 @@ function DemoPageContent() {
       await transcription.reprocessCleanup({
         cleanupType: selectedCleanupLevel,
         llmModel: modelId,
+        ...(isTemperatureSelectionEnabled && selectedCleanupTemp !== null && { temperature: selectedCleanupTemp }),
       })
       // Refresh cache after completion
       const { data: updatedCleanups } = await getCleanedEntries(transcription.entryId)
@@ -584,7 +592,7 @@ function DemoPageContent() {
       setSelectedCleanupModel(previousModel)
       toast.error(t('demo.cleanup.modelChangeFailed'))
     }
-  }, [transcription, selectedCleanupLevel, selectedCleanupModel, cleanupCache, t])
+  }, [transcription, selectedCleanupLevel, selectedCleanupModel, cleanupCache, selectedCleanupTemp, t])
 
   // Handler for cleanup level change - uses cached cleanup if available
   const handleCleanupLevelChange = useCallback(async (level: CleanupType) => {
@@ -603,10 +611,12 @@ function DemoPageContent() {
     }
 
     try {
-      // Check if cleanup already exists (exact match on cleanup_type)
+      // Check if cleanup already exists (exact match on cleanup_type, and temperature if enabled)
       const existing = modelToUse ? cleanupCache.find(c =>
         c.llm_model === modelToUse &&
         c.cleanup_type === level &&
+        // Only match temperature when temperature selection is enabled
+        (!isTemperatureSelectionEnabled || c.temperature === selectedCleanupTemp) &&
         c.status === 'completed'
       ) : null
 
@@ -621,6 +631,7 @@ function DemoPageContent() {
       await transcription.reprocessCleanup({
         cleanupType: level,
         llmModel: modelToUse,
+        ...(isTemperatureSelectionEnabled && selectedCleanupTemp !== null && { temperature: selectedCleanupTemp }),
       })
       // Refresh cache after completion
       const { data: updatedCleanups } = await getCleanedEntries(transcription.entryId)
@@ -631,7 +642,46 @@ function DemoPageContent() {
       setSelectedCleanupLevel(previousLevel)
       toast.error(t('demo.cleanup.levelChangeFailed'))
     }
-  }, [transcription, selectedCleanupModel, selectedCleanupLevel, cleanupCache, hasManualCleanupModelSelection, t])
+  }, [transcription, selectedCleanupModel, selectedCleanupLevel, cleanupCache, hasManualCleanupModelSelection, selectedCleanupTemp, t])
+
+  // Handler for temperature change - uses cached cleanup if available
+  const handleCleanupTempChange = useCallback(async (temp: number | null) => {
+    const previousTemp = selectedCleanupTemp
+    setSelectedCleanupTemp(temp)
+    if (!transcription.transcriptionId || !transcription.entryId) return
+
+    try {
+      // Check if cleanup already exists (exact match on model, level, and temperature)
+      const existing = cleanupCache.find(c =>
+        c.llm_model === selectedCleanupModel &&
+        c.cleanup_type === selectedCleanupLevel &&
+        c.temperature === temp &&
+        c.status === 'completed'
+      )
+
+      if (existing) {
+        // CACHED: Fetch existing cleanup (no LLM call)
+        const { data: cleanup } = await getCleanedEntry(existing.id)
+        transcription.loadCleanupData(cleanup)
+        return
+      }
+
+      // NOT CACHED: Trigger new cleanup with temperature
+      await transcription.reprocessCleanup({
+        cleanupType: selectedCleanupLevel,
+        llmModel: selectedCleanupModel,
+        ...(temp !== null && { temperature: temp }),
+      })
+      // Refresh cache after completion
+      const { data: updatedCleanups } = await getCleanedEntries(transcription.entryId)
+      setCleanupCache(updatedCleanups)
+    } catch (err) {
+      console.error('Re-cleanup failed:', err)
+      // Revert to previous temperature and show error
+      setSelectedCleanupTemp(previousTemp)
+      toast.error(t('demo.cleanup.temperatureChangeFailed'))
+    }
+  }, [transcription, selectedCleanupModel, selectedCleanupLevel, cleanupCache, selectedCleanupTemp, t])
 
   // Handler for analysis model change - auto-triggers re-analysis
   const handleAnalysisModelChange = useCallback(async (modelId: string) => {
@@ -1106,6 +1156,10 @@ function DemoPageContent() {
                   onLevelChange: handleCleanupLevelChange,
                   cachedCleanups: cleanupCache,
                   hasManualSelection: hasManualCleanupModelSelection,
+                  ...(isTemperatureSelectionEnabled && {
+                    selectedTemperature: selectedCleanupTemp,
+                    onTemperatureChange: handleCleanupTempChange,
+                  }),
                 }}
               />
             </ExpandableCard>

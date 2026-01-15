@@ -303,7 +303,12 @@
       },
       "copy": "Copy",
       "modelChangeFailed": "Failed to reprocess with selected model. Please try again.",
-      "levelChangeFailed": "Failed to change cleanup level. Please try again."
+      "levelChangeFailed": "Failed to change cleanup level. Please try again.",
+      "temperatureChangeFailed": "Failed to change creativity. Please try again.",
+      "creativity": "Creativity:",
+      "creativityFocused": "Focused",
+      "creativityCreative": "Creative",
+      "temperatureDefault": "Default"
     },
     "feedback": {
       "title": "How was the quality?",

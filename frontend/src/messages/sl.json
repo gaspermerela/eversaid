@@ -303,7 +303,12 @@
       },
       "copy": "Kopiraj",
       "modelChangeFailed": "Čiščenje z izbranim modelom ni uspelo. Poskusite znova.",
-      "levelChangeFailed": "Sprememba ravni čiščenja ni uspela. Poskusite znova."
+      "levelChangeFailed": "Sprememba ravni čiščenja ni uspela. Poskusite znova.",
+      "temperatureChangeFailed": "Sprememba ustvarjalnosti ni uspela. Poskusite znova.",
+      "creativity": "Ustvarjalnost:",
+      "creativityFocused": "Natančno",
+      "creativityCreative": "Ustvarjalno",
+      "temperatureDefault": "Privzeto"
     },
     "feedback": {
       "title": "Kakšna je bila kakovost?",

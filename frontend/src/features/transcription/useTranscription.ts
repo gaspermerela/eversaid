@@ -181,10 +181,10 @@ export interface UseTranscriptionReturn {
   fetchRateLimits: () => Promise<void>
 
   /**
-   * Reprocess cleanup with new model or cleanup type.
+   * Reprocess cleanup with new model, cleanup type, or temperature.
    * Polls for completion and reloads entry when done.
    */
-  reprocessCleanup: (options?: { cleanupType?: CleanupType; llmModel?: string }) => Promise<void>
+  reprocessCleanup: (options?: { cleanupType?: CleanupType; llmModel?: string; temperature?: number | null }) => Promise<void>
 
   /**
    * Load cleanup data directly (for switching to cached cleanup without LLM call)
@@ -703,11 +703,11 @@ export function useTranscription(
   )
 
   /**
-   * Reprocess cleanup with new options (model, cleanup type).
+   * Reprocess cleanup with new options (model, cleanup type, temperature).
    * Sets status to cleaning, triggers new cleanup, polls for completion, then reloads entry.
    */
   const reprocessCleanup = useCallback(
-    async (options: { cleanupType?: CleanupType; llmModel?: string } = {}): Promise<void> => {
+    async (options: { cleanupType?: CleanupType; llmModel?: string; temperature?: number | null } = {}): Promise<void> => {
       if (!transcriptionId || !entryId) {
         console.warn("[reprocessCleanup] Missing transcriptionId or entryId")
         return

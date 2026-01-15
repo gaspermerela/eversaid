@@ -24,3 +24,11 @@ export const CLEANUP_LEVEL_DEFAULT_MODELS: Partial<Record<CleanupType, string>> 
 export function getDefaultModelForLevel(level: CleanupType): string | undefined {
   return CLEANUP_LEVEL_DEFAULT_MODELS[level]
 }
+
+// Temperature options for cleanup (null = API default, which is typically 0)
+export const CLEANUP_TEMPERATURES: (number | null)[] = [
+  null, 0, 0.05, 0.1, 0.3, 0.5, 0.8, 1.0
+]
+
+// Default temperature (null = not specified, API decides)
+export const DEFAULT_CLEANUP_TEMPERATURE: number | null = null

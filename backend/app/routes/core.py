@@ -50,6 +50,7 @@ class CleanupRequest(BaseModel):
 
     cleanup_type: Optional[str] = "corrected"  # verbatim, corrected, formal
     llm_model: Optional[str] = None
+    temperature: Optional[float] = None  # 0-2, not sent if None
 
 
 class UserEditRequest(BaseModel):
@@ -426,6 +427,8 @@ async def trigger_cleanup(
     request_body = {"type": body.cleanup_type}
     if body.llm_model:
         request_body["llm_model"] = body.llm_model
+    if body.temperature is not None:
+        request_body["temperature"] = body.temperature
 
     response = await core_api.request(
         "POST",

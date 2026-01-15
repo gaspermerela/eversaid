@@ -4,7 +4,7 @@ import type { Segment } from "@/components/demo/types"
 import type { ModelInfo, CleanupType, CleanupSummary } from "@/features/transcription/types"
 import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check, Medal } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { CLEANUP_LEVELS, getDefaultModelForLevel } from "@/lib/level-config"
+import { CLEANUP_LEVELS, CLEANUP_TEMPERATURES, getDefaultModelForLevel } from "@/lib/level-config"
 
 export interface CleanupOptionsProps {
   /** Available LLM models */
@@ -23,6 +23,10 @@ export interface CleanupOptionsProps {
   cachedCleanups?: CleanupSummary[]
   /** Whether user has manually selected a model (vs using defaults) */
   hasManualSelection?: boolean
+  /** Currently selected temperature (optional - only when temperature selection is enabled) */
+  selectedTemperature?: number | null
+  /** Callback when temperature changes (optional - only when temperature selection is enabled) */
+  onTemperatureChange?: (temp: number | null) => void
 }
 
 export interface TranscriptHeaderProps {
@@ -69,16 +73,18 @@ export function TranscriptHeader({
     : t("levels.corrected")
 
   return (
-    <div className="px-6 py-4 flex justify-between items-center border-r border-border last:border-r-0">
-      <div className="flex items-center gap-3">
-        <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[1px]">{title}</span>
+    <div className={`px-6 py-4 border-r border-border last:border-r-0 ${cleanupOptions?.onTemperatureChange ? 'flex flex-col gap-2' : 'flex justify-between items-center'}`}>
+      {/* First row: Title, Model, Style, and action buttons */}
+      <div className="flex justify-between items-center w-full">
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-[1px]">{title}</span>
 
-        {/* Cleanup options dropdowns */}
-        {cleanupOptions && (
-          <>
-          {/* Vertical divider */}
-          <div className="h-4 w-px bg-border mx-2" />
-          <div className="flex items-center gap-3">
+          {/* Cleanup options dropdowns */}
+          {cleanupOptions && (
+            <>
+            {/* Vertical divider */}
+            <div className="h-4 w-px bg-border mx-2" />
+            <div className="flex items-center gap-3">
             {/* Processing spinner */}
             {cleanupOptions.isProcessing && (
               <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
@@ -106,10 +112,12 @@ export function TranscriptHeader({
                       {cleanupOptions.models.map((model) => {
                         // Check if this is the recommended model for current level
                         const isRecommendedForLevel = model.id === getDefaultModelForLevel(cleanupOptions.selectedLevel)
-                        // Check if cached (exact match on cleanup_type)
+                        // Check if cached (exact match on cleanup_type, and temperature if enabled)
                         const isCached = cleanupOptions.cachedCleanups?.some(c =>
                           c.llm_model === model.id &&
                           c.cleanup_type === cleanupOptions.selectedLevel &&
+                          // Only match temperature when temperature selection is enabled
+                          (cleanupOptions.onTemperatureChange === undefined || c.temperature === cleanupOptions.selectedTemperature) &&
                           c.status === 'completed'
                         )
                         return (
@@ -164,6 +172,8 @@ export function TranscriptHeader({
                       const isCached = cleanupOptions.cachedCleanups?.some(c =>
                         c.llm_model === modelToCheck &&
                         c.cleanup_type === levelId &&
+                        // Only match temperature when temperature selection is enabled
+                        (cleanupOptions.onTemperatureChange === undefined || c.temperature === cleanupOptions.selectedTemperature) &&
                         c.status === 'completed'
                       )
                       return (
@@ -186,12 +196,13 @@ export function TranscriptHeader({
                 )}
               </div>
             </div>
+
           </div>
           </>
         )}
-      </div>
+        </div>
 
-      <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center">
         {showDiffToggle && onToggleDiff && (
           <button
             onClick={onToggleDiff}
@@ -224,7 +235,47 @@ export function TranscriptHeader({
             <X className="w-4 h-4" />
           </button>
         )}
+        </div>
       </div>
+
+      {/* Second row: Creativity/Temperature selector - only shown when temperature selection is enabled */}
+      {cleanupOptions?.onTemperatureChange && (
+        <div className="flex items-center gap-2 pl-0">
+          <span className="text-xs font-semibold text-foreground/70">{t("creativity")}</span>
+          <span className="text-[10px] text-muted-foreground">{t("creativityFocused")}</span>
+          <div className="flex gap-1 flex-wrap">
+            {CLEANUP_TEMPERATURES.map((temp) => {
+              const isCached = cleanupOptions.cachedCleanups?.some(c =>
+                c.llm_model === cleanupOptions.selectedModel &&
+                c.cleanup_type === cleanupOptions.selectedLevel &&
+                c.temperature === temp &&
+                c.status === 'completed'
+              )
+              const isSelected = cleanupOptions.selectedTemperature === temp
+              return (
+                <button
+                  key={temp ?? 'null'}
+                  onClick={() => !cleanupOptions.isProcessing && cleanupOptions.onTemperatureChange!(temp)}
+                  disabled={cleanupOptions.isProcessing}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium flex items-center gap-1 whitespace-nowrap transition-all ${
+                    cleanupOptions.isProcessing
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  } ${
+                    isSelected
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {temp === null ? t("temperatureDefault") : temp}
+                  {isCached && <Check className="w-2.5 h-2.5 text-green-500 flex-shrink-0" />}
+                </button>
+              )
+            })}
+          </div>
+          <span className="text-[10px] text-muted-foreground">{t("creativityCreative")}</span>
+        </div>
+      )}
     </div>
   )
 }

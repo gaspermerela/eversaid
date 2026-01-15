@@ -89,6 +89,7 @@ export interface CleanupSummary {
   llm_model: string
   prompt_name: string // full template name (e.g., 'sl-corrected-readable-v2-multi-v1')
   cleanup_type: string | null // cleanup type (e.g., 'corrected', 'corrected-readable-v2')
+  temperature: number | null // LLM temperature (0-2), null if not specified
   status: 'pending' | 'processing' | 'completed' | 'failed'
   is_primary: boolean
 }

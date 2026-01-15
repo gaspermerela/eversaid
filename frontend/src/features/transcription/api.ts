@@ -354,6 +354,7 @@ export async function getCleanedEntry(
 export interface TriggerCleanupOptions {
   cleanupType?: CleanupType
   llmModel?: string
+  temperature?: number | null
 }
 
 /**
@@ -364,12 +365,15 @@ export async function triggerCleanup(
   transcriptionId: string,
   options: TriggerCleanupOptions = {}
 ): Promise<{ data: { id: string; status: string }; rateLimitInfo: RateLimitInfo | null }> {
-  const body: Record<string, string> = {}
+  const body: Record<string, string | number | null> = {}
   if (options.cleanupType) {
     body.cleanup_type = options.cleanupType
   }
   if (options.llmModel) {
     body.llm_model = options.llmModel
+  }
+  if (options.temperature !== undefined) {
+    body.temperature = options.temperature
   }
 
   return request<{ id: string; status: string }>(`/api/transcriptions/${transcriptionId}/cleanup`, {
