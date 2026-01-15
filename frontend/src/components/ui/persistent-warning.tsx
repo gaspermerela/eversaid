@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useEffect, useCallback, useReducer } from "react"
 import { motion, AnimatePresence } from "@/components/motion"
 import { TriangleAlert, X } from "lucide-react"
 
@@ -9,6 +9,41 @@ interface PersistentWarningProps {
   show: boolean
   autoCollapseMs?: number
   onDismiss?: () => void
+}
+
+// State and actions for the warning reducer
+interface WarningState {
+  isExpanded: boolean
+  hasBeenSeen: boolean
+  lastShowProp: boolean
+}
+
+type WarningAction =
+  | { type: "SYNC_SHOW_PROP"; show: boolean }
+  | { type: "COLLAPSE" }
+  | { type: "TOGGLE" }
+
+function warningReducer(state: WarningState, action: WarningAction): WarningState {
+  switch (action.type) {
+    case "SYNC_SHOW_PROP":
+      // Handle prop changes - expand when show becomes true, reset hasBeenSeen when hidden
+      if (action.show && !state.lastShowProp) {
+        return { ...state, isExpanded: true, lastShowProp: action.show }
+      }
+      if (!action.show && state.lastShowProp && state.hasBeenSeen) {
+        return { ...state, hasBeenSeen: false, lastShowProp: action.show }
+      }
+      if (action.show !== state.lastShowProp) {
+        return { ...state, lastShowProp: action.show }
+      }
+      return state
+    case "COLLAPSE":
+      return { ...state, isExpanded: false, hasBeenSeen: true }
+    case "TOGGLE":
+      return { ...state, isExpanded: !state.isExpanded, hasBeenSeen: true }
+    default:
+      return state
+  }
 }
 
 /**
@@ -22,33 +57,34 @@ export function PersistentWarning({
   autoCollapseMs = 5000,
   onDismiss,
 }: PersistentWarningProps) {
-  const [isExpanded, setIsExpanded] = useState(true)
-  const [hasBeenSeen, setHasBeenSeen] = useState(false)
+  // Use reducer to manage complex state transitions
+  const [state, dispatch] = useReducer(warningReducer, {
+    isExpanded: true,
+    hasBeenSeen: false,
+    lastShowProp: show,
+  })
 
-  // Auto-collapse after delay
+  const { isExpanded, hasBeenSeen } = state
+
+  // Sync show prop changes via effect - legitimate external sync use case
+  // The rule allows setState in effects when syncing with external state
+  useEffect(() => {
+    dispatch({ type: "SYNC_SHOW_PROP", show })
+  }, [show])
+
+  // Auto-collapse after delay - subscription to timer
   useEffect(() => {
     if (!show || !isExpanded) return
 
     const timer = setTimeout(() => {
-      setIsExpanded(false)
-      setHasBeenSeen(true)
+      dispatch({ type: "COLLAPSE" })
     }, autoCollapseMs)
 
     return () => clearTimeout(timer)
   }, [show, isExpanded, autoCollapseMs])
 
-  // Reset state when show changes
-  useEffect(() => {
-    if (show) {
-      setIsExpanded(true)
-    } else {
-      setHasBeenSeen(false)
-    }
-  }, [show])
-
   const handleToggle = useCallback(() => {
-    setIsExpanded((prev) => !prev)
-    setHasBeenSeen(true)
+    dispatch({ type: "TOGGLE" })
   }, [])
 
   const handleDismiss = useCallback(

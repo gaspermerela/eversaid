@@ -21,6 +21,21 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "v0-utils/.tmp-v0-fetch/**",
   ]),
+  // Custom rules configuration
+  {
+    rules: {
+      // Allow unused variables with underscore prefix (intentionally unused)
+      // This is a common convention for destructuring where some values are not needed
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

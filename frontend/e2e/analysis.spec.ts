@@ -1,9 +1,5 @@
-import { test, expect, Page } from "@playwright/test"
-import {
-  setupDemoMocks,
-  mockAnalysisResult,
-  mockProfiles,
-} from "./mocks/setup-mocks"
+import { test, expect } from "@playwright/test"
+import { setupDemoMocks } from "./mocks/setup-mocks"
 
 /**
  * Analysis Section E2E Tests

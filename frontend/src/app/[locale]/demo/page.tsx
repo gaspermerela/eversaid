@@ -7,13 +7,14 @@ import { AnalysisSection } from "@/components/demo/analysis-section"
 import { DemoWarningBanner } from "@/components/demo/demo-warning-banner"
 import { EntryHistoryCard } from "@/components/demo/entry-history-card"
 import { FeedbackCard } from "@/components/demo/feedback-card"
-import { TextMoveToolbar } from "@/components/demo/text-move-toolbar"
+// TextMoveToolbar temporarily disabled - kept for future use
+// import { TextMoveToolbar } from "@/components/demo/text-move-toolbar"
 import { TranscriptComparisonLayout } from "@/components/demo/transcript-comparison-layout"
 import { TranscriptLoadingSkeleton } from "@/components/demo/transcript-loading-skeleton"
 import { AudioPlayer } from "@/components/demo/audio-player"
 import { UploadZone } from "@/components/demo/upload-zone"
 import { ExpandableCard } from "@/components/demo/expandable-card"
-import type { Segment, SpellcheckError, TextMoveSelection } from "@/components/demo/types"
+import type { SpellcheckError, TextMoveSelection } from "@/components/demo/types"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 import { useWaitlist } from "@/features/transcription/useWaitlist"
 import { useTranslations, useLocale } from "next-intl"
@@ -46,7 +47,8 @@ import { ProcessingStages } from "@/components/demo/processing-stages"
 let sessionInitPromise: Promise<void> | null = null
 
 // Mock spellcheck - in production, call a Slovenian spellcheck API
-const checkSpelling = (text: string): SpellcheckError[] => {
+// Kept for future use when spellcheck feature is implemented
+const _checkSpelling = (text: string): SpellcheckError[] => {
   const mockErrors: SpellcheckError[] = []
   const words = text.split(/\b/)
   let position = 0
@@ -87,8 +89,8 @@ function DemoPageContent() {
   // Translation hook
   const t = useTranslations()
 
-  // Locale hook
-  const locale = useLocale()
+  // Locale hook - kept for future i18n usage
+  const _locale = useLocale()
 
   // Feedback hook
   const feedbackHook = useFeedback({
@@ -115,7 +117,7 @@ function DemoPageContent() {
   const [editingSegmentId, setEditingSegmentId] = useState<string | null>(null)
   const [editedTexts, setEditedTexts] = useState<Map<string, string>>(new Map())
   const [revertedSegments, setRevertedSegments] = useState<Map<string, string>>(new Map())
-  const [spellcheckErrors, setSpellcheckErrors] = useState<Map<string, SpellcheckError[]>>(new Map())
+  const [spellcheckErrors, _setSpellcheckErrors] = useState<Map<string, SpellcheckError[]>>(new Map())
   const [activeSuggestion, setActiveSuggestion] = useState<{
     segmentId: string
     word: string
@@ -124,7 +126,7 @@ function DemoPageContent() {
   } | null>(null)
 
   const [showDiff, setShowDiff] = useState(true)
-  const [showSpeedMenu, setShowSpeedMenu] = useState(false)
+  const [_showSpeedMenu, _setShowSpeedMenu] = useState(false)
   const [showAnalysisMenu, setShowAnalysisMenu] = useState(false)
 
   const [textMoveSelection, setTextMoveSelection] = useState<TextMoveSelection | null>(null)
@@ -381,8 +383,8 @@ function DemoPageContent() {
     setShowDiff((prev) => !prev)
   }, [])
 
-  const handleToggleSpeedMenu = useCallback(() => {
-    setShowSpeedMenu((prev) => !prev)
+  const _handleToggleSpeedMenu = useCallback(() => {
+    _setShowSpeedMenu((prev) => !prev)
   }, [])
 
   const handleToggleAnalysisMenu = useCallback(() => {
@@ -414,13 +416,13 @@ function DemoPageContent() {
     [],
   )
 
-  const handleMoveClick = useCallback(() => {
+  const _handleMoveClick = useCallback(() => {
     if (textMoveSelection) {
       setIsSelectingMoveTarget(true)
     }
   }, [textMoveSelection])
 
-  const handleCancelTextMove = useCallback(() => {
+  const _handleCancelTextMove = useCallback(() => {
     setTextMoveSelection(null)
     setIsSelectingMoveTarget(false)
     window.getSelection()?.removeAllRanges()

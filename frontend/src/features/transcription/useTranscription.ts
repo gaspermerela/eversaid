@@ -28,12 +28,28 @@ import {
   getCleanedEntry,
   getEntry,
   saveUserEdit,
-  revertUserEdit,
   getRateLimits,
   triggerCleanup,
   triggerAnalysis,
 } from "./api"
 import { addEntryId, cacheEntry } from "@/lib/storage"
+import { CLEANUP_ALLOWED_MODELS } from "@/lib/model-config"
+
+// Helper to reconstruct full model ID from provider and model
+// API splits "openai/gpt-oss-120b" into llm_provider="openai", llm_model="gpt-oss-120b"
+// We need to reconstruct it for dropdown selection
+function getFullModelId(llmProvider: string | undefined | null, llmModel: string | undefined | null): string | null {
+  if (!llmModel) return null
+  // Try provider/model format first (e.g., "openai/gpt-oss-120b")
+  if (llmProvider) {
+    const withProvider = `${llmProvider}/${llmModel}`
+    if (CLEANUP_ALLOWED_MODELS.includes(withProvider)) {
+      return withProvider
+    }
+  }
+  // Fall back to just model (e.g., "llama-3.3-70b-versatile")
+  return llmModel
+}
 
 // Polling interval for transcription status (2 seconds)
 const POLL_INTERVAL_MS = 2000
@@ -281,7 +297,7 @@ export function useTranscription(
   // Demo entries are NOT stored in Core API - they use static files and localStorage for edits
   const [isDemo, setIsDemo] = useState<boolean>(false)
   const [demoLocale, setDemoLocale] = useState<string | null>(null)
-  const [demoAudioUrl, setDemoAudioUrl] = useState<string | null>(null)
+  const [_demoAudioUrl, _setDemoAudioUrl] = useState<string | null>(null)
 
   // Track reverted segments for undo functionality
   const [revertedSegments, setRevertedSegments] = useState<Map<string, string>>(
@@ -542,8 +558,8 @@ export function useTranscription(
               const { data: cleanedEntry } = await getCleanedEntry(cleanupIdVal)
 
               if (cleanedEntry.status === "completed") {
-                // Store the model name used for this cleanup
-                setCleanupModelName(cleanedEntry.llm_model || null)
+                // Store the model name used for this cleanup (reconstruct full ID)
+                setCleanupModelName(getFullModelId(cleanedEntry.llm_provider, cleanedEntry.llm_model))
 
                 // Transform and set segments - prefer user-edited version if available
                 const rawSegments = transcriptionStatus.segments || []
@@ -997,7 +1013,7 @@ export function useTranscription(
         setEntryId(entryIdToLoad)
         setTranscriptionId(transcription.id || null)
         setCleanupId(cleanupData.id)
-        setCleanupModelName(cleanupData.llm_model || null)
+        setCleanupModelName(getFullModelId(cleanupData.llm_provider, cleanupData.llm_model))
         // Set all analyses for client-side caching by profile
         const allAnalyses = entryDetails.analyses || []
         setAnalyses(allAnalyses)
@@ -1013,7 +1029,7 @@ export function useTranscription(
                             entryDetails.original_filename?.endsWith(".mp3")
         setIsDemo(isDemoEntry || false)
         setDemoLocale(isDemoEntry ? entryDetails.original_filename?.replace("demo-", "").replace(".mp3", "") || null : null)
-        setDemoAudioUrl(null)  // Demo audio served via standard /api/entries/{id}/audio endpoint
+        _setDemoAudioUrl(null)  // Demo audio served via standard /api/entries/{id}/audio endpoint
 
         setStatus("complete")
         console.log("[loadEntry] Entry loaded successfully", isDemoEntry ? "(demo)" : "(real)")
@@ -1060,7 +1076,7 @@ export function useTranscription(
     // Reset demo state
     setIsDemo(false)
     setDemoLocale(null)
-    setDemoAudioUrl(null)
+    _setDemoAudioUrl(null)
   }, [initialSegments])
 
   /**

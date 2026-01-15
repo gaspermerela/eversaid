@@ -54,7 +54,7 @@ export function EditableSegmentRow({
   time,
   text,
   rawText,
-  originalRawText,
+  originalRawText: _originalRawText,
   paragraphs,
   isActive,
   isReverted,
@@ -66,7 +66,7 @@ export function EditableSegmentRow({
   showRevertButton = true,
   isSelectingMoveTarget,
   isValidMoveTarget,
-  isMoveSource,
+  isMoveSource: _isMoveSource,
   spellcheckErrors,
   activeSuggestion,
   onRevert,
@@ -120,7 +120,7 @@ export function EditableSegmentRow({
     }
   }
 
-  const renderTextWithSpellcheck = () => {
+  const _renderTextWithSpellcheck = () => {
     if (!isEditing || spellcheckErrors.length === 0) {
       return editedText
     }

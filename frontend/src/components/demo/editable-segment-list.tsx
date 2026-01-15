@@ -75,7 +75,7 @@ export const EditableSegmentList = forwardRef<HTMLDivElement, EditableSegmentLis
       onSuggestionSelect,
       onCloseSuggestions,
       onUpdateAll,
-      onToggleDiff,
+      onToggleDiff: _onToggleDiff,
       onTextSelect,
       onMoveTargetClick,
       onSegmentClick,

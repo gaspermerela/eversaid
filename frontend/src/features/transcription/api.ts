@@ -110,7 +110,7 @@ async function request<T>(
   let response: Response
   try {
     response = await fetch(url, fetchOptions)
-  } catch (error) {
+  } catch {
     throw new ApiError(0, 'Network error: Unable to connect to server')
   }
 

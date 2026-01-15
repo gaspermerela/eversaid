@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Inter, Comfortaa } from "next/font/google"
+import { Inter, Comfortaa } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Toaster } from "@/components/ui/sonner"
 import { NextIntlClientProvider } from 'next-intl'
@@ -8,8 +8,9 @@ import { getMessages, setRequestLocale } from 'next-intl/server'
 import { locales } from '@/i18n/config'
 import "../globals.css"
 
-const _geist = Geist({ subsets: ["latin"] })
-const _geistMono = Geist_Mono({ subsets: ["latin"] })
+// Font definitions kept for potential future use
+// const _geist = Geist({ subsets: ["latin"] })
+// const _geistMono = Geist_Mono({ subsets: ["latin"] })
 const _inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 const _comfortaa = Comfortaa({ weight: "700", subsets: ["latin"], variable: "--font-comfortaa" })
 

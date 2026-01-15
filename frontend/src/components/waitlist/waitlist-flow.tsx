@@ -40,8 +40,8 @@ export function WaitlistFlow({
   onSourceChange,
   onSubmit,
   onClose,
-  onOpenForm,
-  onCopyCode,
+  onOpenForm: _onOpenForm,
+  onCopyCode: _onCopyCode,
   onCopyLink,
   t,
 }: WaitlistFlowProps) {

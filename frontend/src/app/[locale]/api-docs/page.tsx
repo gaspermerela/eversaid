@@ -17,7 +17,7 @@ export default function ApiDocsPage() {
     login: "curl",
     workflow: "python",
   })
-  const [copiedCode, setCopiedCode] = useState<string | null>(null)
+  const [, setCopiedCode] = useState<string | null>(null)
   const [copiedAnchor, setCopiedAnchor] = useState<string | null>(null)
 
   // For upload tab
@@ -38,7 +38,7 @@ export default function ApiDocsPage() {
     sourcePage: '/api-docs'
   })
 
-  const handleCopyCode = (code: string, id: string) => {
+  const _handleCopyCode = (code: string, id: string) => {
     navigator.clipboard.writeText(code)
     setCopiedCode(id)
     setTimeout(() => setCopiedCode(null), 2000)

@@ -1037,7 +1037,7 @@ describe('useAnalysis', () => {
         rateLimitInfo: null,
       })
 
-      const { result, rerender } = renderHook(
+      const { result: _result, rerender } = renderHook(
         (props) => useAnalysis(props),
         { initialProps: { cleanupId: 'cleanup-123', analysisId: 'analysis-1' } }
       )

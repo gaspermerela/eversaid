@@ -163,6 +163,8 @@ export function TranscriptHeader({
         {showDiffToggle && onToggleDiff && (
           <button
             onClick={onToggleDiff}
+            aria-label={showDiff ? "Hide changes" : "Show changes"}
+            aria-pressed={showDiff}
             className={`flex items-center justify-center p-1.5 rounded-md transition-all ${
               showDiff
                 ? "bg-blue-100 text-blue-700 border border-blue-300"

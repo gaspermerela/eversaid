@@ -1,8 +1,18 @@
 "use client"
 
-import { useEffect, useState, useRef, type ReactNode } from "react"
+import { useRef, useSyncExternalStore, type ReactNode } from "react"
 import { motion, useReducedMotion } from "@/components/motion"
 import { createPortal } from "react-dom"
+
+// useSyncExternalStore pattern for SSR-safe client detection
+// This is the React 18+ recommended approach - no useState/useEffect needed
+const emptySubscribe = () => () => {}
+const getClientSnapshot = () => true
+const getServerSnapshot = () => false
+
+function useIsClient() {
+  return useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot)
+}
 
 interface ExpandableCardProps {
   children: ReactNode
@@ -38,13 +48,10 @@ export function ExpandableCard({
   expandedClassName = "rounded-none",
 }: ExpandableCardProps) {
   const shouldReduceMotion = useReducedMotion()
-  const [isMounted, setIsMounted] = useState(false)
+  // Use useSyncExternalStore for SSR-safe client detection
+  // This is the React 18+ pattern that avoids setState in effects
+  const isMounted = useIsClient()
   const containerRef = useRef<HTMLDivElement>(null)
-
-  // Track mounting for portal
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
 
   // Shared spring transition config
   const springTransition = shouldReduceMotion

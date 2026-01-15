@@ -244,11 +244,13 @@ export function useDemoCleanupTrigger(
    * Cleanup polling intervals on unmount
    */
   useEffect(() => {
+    // Copy ref value inside effect for cleanup
+    const intervals = pollIntervalsRef.current
     return () => {
-      pollIntervalsRef.current.forEach((interval) => {
+      intervals.forEach((interval) => {
         clearTimeout(interval)
       })
-      pollIntervalsRef.current.clear()
+      intervals.clear()
     }
   }, [])
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect, useCallback } from "react"
+import { useMemo, useCallback } from "react"
 import type { SegmentWithTime, TranscriptionWord } from "./types"
 
 /** Offset in seconds to highlight word slightly before it's spoken (better UX) */
@@ -23,7 +23,7 @@ export interface UseWordHighlightReturn {
 }
 
 /**
- * Binary search to find the word at a given time
+ * Find the word at a given time
  * Returns the index of the word that contains the current time, or -1 if not found
  */
 function findWordAtTime(words: TranscriptionWord[], time: number): number {
@@ -51,6 +51,10 @@ function findWordAtTime(words: TranscriptionWord[], time: number): number {
 /**
  * Hook for tracking the currently spoken word during audio playback
  *
+ * Uses derived state pattern - activeWordIndex is computed from props during render
+ * rather than being synchronized via effects. This avoids cascading renders and
+ * follows React's recommendation for computed values.
+ *
  * @param options - Configuration options
  * @returns Object with active word index and utility functions
  *
@@ -69,8 +73,6 @@ export function useWordHighlight(
 ): UseWordHighlightReturn {
   const { segments, currentTime, isPlaying, activeSegmentId } = options
 
-  const [activeWordIndex, setActiveWordIndex] = useState(-1)
-
   // Check if any segment has word-level timing data
   const hasWordData = useMemo(() => {
     return segments.some((seg) => seg.words && seg.words.length > 0)
@@ -85,29 +87,24 @@ export function useWordHighlight(
     return map
   }, [segments])
 
-  // Find active word based on currentTime
-  useEffect(() => {
+  // Compute activeWordIndex as derived state during render
+  // This is the React-recommended pattern for values that can be computed from props
+  // Instead of setState in effects, we compute the value directly
+  const activeWordIndex = useMemo(() => {
+    // Not playing or no data - no active word
     if (!isPlaying || !activeSegmentId || !hasWordData) {
-      setActiveWordIndex(-1)
-      return
+      return -1
     }
 
     const segment = segmentMap.get(activeSegmentId)
     if (!segment?.words?.length) {
-      setActiveWordIndex(-1)
-      return
+      return -1
     }
 
     // Add lookahead to highlight word slightly before it's spoken
     const lookaheadTime = currentTime + HIGHLIGHT_LOOKAHEAD_SECONDS
-    const wordIndex = findWordAtTime(segment.words, lookaheadTime)
-    setActiveWordIndex(wordIndex)
+    return findWordAtTime(segment.words, lookaheadTime)
   }, [currentTime, isPlaying, activeSegmentId, segmentMap, hasWordData])
-
-  // Reset word index when segment changes
-  useEffect(() => {
-    setActiveWordIndex(-1)
-  }, [activeSegmentId])
 
   // Get words for a segment (filtered to only 'word' type)
   const getWordsForSegment = useCallback(

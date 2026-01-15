@@ -1,7 +1,7 @@
 'use client'
 
 import { X, Mic, Square, RotateCcw, Check, Play, Pause } from 'lucide-react'
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 
 export interface RecordingModalProps {
@@ -153,21 +153,26 @@ export function RecordingModal({
 }: RecordingModalProps) {
   const t = useTranslations('demo.recording')
   const tCommon = useTranslations('common')
-  const [audioUrl, setAudioUrl] = useState<string | null>(null)
 
-  // Create and cleanup blob URL for audio preview
-  useEffect(() => {
-    if (audioBlob) {
-      const url = URL.createObjectURL(audioBlob)
-      setAudioUrl(url)
-      return () => {
-        URL.revokeObjectURL(url)
-        setAudioUrl(null)
-      }
-    } else {
-      setAudioUrl(null)
-    }
+  // Create blob URL synchronously during render using useMemo
+  // This is valid because URL.createObjectURL is a pure function (same blob = same behavior)
+  // We track created URLs for cleanup in a separate effect
+  const audioUrl = useMemo(() => {
+    if (!audioBlob) return null
+    return URL.createObjectURL(audioBlob)
   }, [audioBlob])
+
+  // Cleanup effect - revoke URLs when they change or on unmount
+  // This is the proper pattern: useMemo creates, useEffect cleans up
+  useEffect(() => {
+    // Return cleanup function that revokes the current URL
+    const urlToRevoke = audioUrl
+    return () => {
+      if (urlToRevoke) {
+        URL.revokeObjectURL(urlToRevoke)
+      }
+    }
+  }, [audioUrl])
 
   if (!isOpen) {
     return null

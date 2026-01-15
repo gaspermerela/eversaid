@@ -5,7 +5,7 @@
  * segment based on current playback time with hysteresis to prevent flickering.
  */
 
-import { useRef, useState, useCallback, useEffect } from "react"
+import { useRef, useState, useCallback, useEffect, useReducer } from "react"
 import type { SegmentWithTime } from "./types"
 
 /** Default tolerance in milliseconds for segment boundary hysteresis */
@@ -166,11 +166,77 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
   // Audio element ref - we use a mutable ref that we update via callback ref
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  // Playback state
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [playbackSpeed, setPlaybackSpeedState] = useState<PlaybackSpeed>(initialSpeed)
+  // Playback state managed via reducer for atomic updates
+  // This allows URL change resets without cascading renders
+  interface PlaybackState {
+    isPlaying: boolean
+    currentTime: number
+    duration: number
+    playbackSpeed: PlaybackSpeed
+    audioUrl: string | null | undefined
+  }
+
+  type PlaybackAction =
+    | { type: "SET_PLAYING"; isPlaying: boolean }
+    | { type: "SET_CURRENT_TIME"; currentTime: number }
+    | { type: "SET_DURATION"; duration: number }
+    | { type: "SET_PLAYBACK_SPEED"; speed: PlaybackSpeed }
+    | { type: "SYNC_AUDIO_URL"; audioUrl: string | null | undefined }
+
+  function playbackReducer(state: PlaybackState, action: PlaybackAction): PlaybackState {
+    switch (action.type) {
+      case "SET_PLAYING":
+        return { ...state, isPlaying: action.isPlaying }
+      case "SET_CURRENT_TIME":
+        return { ...state, currentTime: action.currentTime }
+      case "SET_DURATION":
+        return { ...state, duration: action.duration }
+      case "SET_PLAYBACK_SPEED":
+        return { ...state, playbackSpeed: action.speed }
+      case "SYNC_AUDIO_URL":
+        // If URL changed, reset playback state
+        if (action.audioUrl !== state.audioUrl) {
+          return {
+            ...state,
+            audioUrl: action.audioUrl,
+            isPlaying: false,
+            currentTime: 0,
+            duration: 0,
+          }
+        }
+        return state
+      default:
+        return state
+    }
+  }
+
+  const [playbackState, dispatchPlayback] = useReducer(playbackReducer, {
+    isPlaying: false,
+    currentTime: 0,
+    duration: 0,
+    playbackSpeed: initialSpeed,
+    audioUrl: audioUrl,
+  })
+
+  // Destructure for convenience
+  const { isPlaying, currentTime, duration, playbackSpeed } = playbackState
+
+  // Wrapper functions that mimic setState for backward compatibility
+  const setIsPlaying = useCallback((value: boolean) => {
+    dispatchPlayback({ type: "SET_PLAYING", isPlaying: value })
+  }, [])
+
+  const setCurrentTime = useCallback((value: number) => {
+    dispatchPlayback({ type: "SET_CURRENT_TIME", currentTime: value })
+  }, [])
+
+  const setDuration = useCallback((value: number) => {
+    dispatchPlayback({ type: "SET_DURATION", duration: value })
+  }, [])
+
+  const setPlaybackSpeedState = useCallback((value: PlaybackSpeed) => {
+    dispatchPlayback({ type: "SET_PLAYBACK_SPEED", speed: value })
+  }, [])
 
   // Active segment tracking
   const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null)
@@ -232,7 +298,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
 
     // Segment updates are throttled internally
     updateActiveSegment(audio.currentTime)
-  }, [updateActiveSegment, duration])
+  }, [updateActiveSegment, duration, setCurrentTime, setDuration])
 
   /**
    * Update duration from audio element
@@ -245,7 +311,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
     if (isFinite(audio.duration) && audio.duration > 0) {
       setDuration(audio.duration)
     }
-  }, [])
+  }, [setDuration])
 
   /**
    * Callback ref that detects when audio element mounts/unmounts
@@ -261,7 +327,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
       // Apply current playback speed
       node.playbackRate = playbackSpeed
     }
-  }, [playbackSpeed])
+  }, [playbackSpeed, setDuration])
 
   /**
    * Handle loadedmetadata event to get duration
@@ -291,21 +357,21 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
    */
   const handleEnded = useCallback(() => {
     setIsPlaying(false)
-  }, [])
+  }, [setIsPlaying])
 
   /**
    * Handle play event
    */
   const handlePlay = useCallback(() => {
     setIsPlaying(true)
-  }, [])
+  }, [setIsPlaying])
 
   /**
    * Handle pause event
    */
   const handlePause = useCallback(() => {
     setIsPlaying(false)
-  }, [])
+  }, [setIsPlaying])
 
   // Controls
 
@@ -355,7 +421,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
     audio.currentTime = clampedTime
     setCurrentTime(clampedTime)
     updateActiveSegment(clampedTime)
-  }, [updateActiveSegment, fallbackDuration])
+  }, [updateActiveSegment, fallbackDuration, setCurrentTime])
 
   /**
    * Seek to the start of a specific segment
@@ -379,7 +445,7 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
     if (audio) {
       audio.playbackRate = speed
     }
-  }, [])
+  }, [setPlaybackSpeedState])
 
   /**
    * Sync playback rate when speed changes
@@ -399,20 +465,14 @@ export function useAudioPlayer(options: UseAudioPlayerOptions): UseAudioPlayerRe
     updateActiveSegment(currentTime)
   }, [segments]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  /**
-   * When audio URL changes (switching entries), reset state and reload metadata
-   * This is critical for when the audio element stays mounted but src changes
-   */
+  // Sync audioUrl changes via reducer - the reducer handles resetting state atomically
+  // This avoids multiple setState calls in effects which trigger cascading renders
   useEffect(() => {
-    if (!audioUrl) return
-
-    // Reset playback state for new audio
-    setDuration(0)
-    setCurrentTime(0)
-    setIsPlaying(false)
-
-    // Force reload of audio metadata
-    audioRef.current?.load()
+    dispatchPlayback({ type: "SYNC_AUDIO_URL", audioUrl })
+    // Force reload of audio metadata when URL changes
+    if (audioUrl) {
+      audioRef.current?.load()
+    }
   }, [audioUrl])
 
   // Use fallbackDuration from API when audio element can't determine duration

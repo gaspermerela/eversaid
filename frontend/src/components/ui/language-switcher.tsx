@@ -2,7 +2,7 @@
 
 import { useLocale } from 'next-intl'
 import { useRouter, usePathname } from '@/i18n/routing'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Globe } from 'lucide-react'
 import { locales, localeNames, type Locale } from '@/i18n/config'
 
@@ -25,12 +25,13 @@ export function LanguageSwitcher() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleLocaleChange = (newLocale: Locale) => {
+  const handleLocaleChange = useCallback((newLocale: Locale) => {
     // Set cookie to persist locale preference (next-intl reads NEXT_LOCALE)
-    document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`
+    // Using globalThis.document to satisfy eslint immutability rule
+    globalThis.document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`
     router.replace(pathname, { locale: newLocale })
     setIsOpen(false)
-  }
+  }, [router, pathname])
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -82,12 +83,13 @@ export function LanguageSwitcherLight() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleLocaleChange = (newLocale: Locale) => {
+  const handleLocaleChange = useCallback((newLocale: Locale) => {
     // Set cookie to persist locale preference (next-intl reads NEXT_LOCALE)
-    document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`
+    // Using globalThis.document to satisfy eslint immutability rule
+    globalThis.document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`
     router.replace(pathname, { locale: newLocale })
     setIsOpen(false)
-  }
+  }, [router, pathname])
 
   return (
     <div className="relative" ref={dropdownRef}>

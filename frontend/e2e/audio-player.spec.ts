@@ -22,7 +22,7 @@ test.describe("Audio Player", () => {
     await expect(audioPlayerBar).toBeVisible({ timeout: 10000 })
   })
 
-  test("displays duration from audio file", async ({ page }) => {
+  test("displays duration from audio file", async () => {
     // Duration display (right side of player)
     const durationDisplay = audioPlayerBar.locator(
       "span.text-right.min-w-\\[48px\\]"
@@ -34,7 +34,7 @@ test.describe("Audio Player", () => {
     await expect(durationDisplay).not.toHaveText("0:00", { timeout: 5000 })
   })
 
-  test("play button is clickable", async ({ page }) => {
+  test("play button is clickable", async () => {
     // Find play button (first button in audio player bar)
     const playButton = audioPlayerBar.locator("button").first()
     await expect(playButton).toBeVisible()
@@ -46,7 +46,7 @@ test.describe("Audio Player", () => {
     await expect(playButton).toBeVisible()
   })
 
-  test("progress bar exists and is clickable", async ({ page }) => {
+  test("progress bar exists and is clickable", async () => {
     // Progress bar should be visible
     const progressBar = audioPlayerBar.locator(".cursor-pointer.group")
     await expect(progressBar).toBeVisible()

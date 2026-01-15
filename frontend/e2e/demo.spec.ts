@@ -51,21 +51,24 @@ test.describe("Demo Page", () => {
     // Wait for editor to expand
     await page.waitForTimeout(300)
 
-    // Find the diff toggle button by its text
-    const diffButton = page.getByRole("button", { name: /diff/i })
+    // Find the diff toggle button by its aria-label (button with Eye icon)
+    const diffButton = page.getByRole("button", { name: /hide changes/i })
 
     await expect(diffButton).toBeVisible()
 
-    // Check initial state
-    await expect(diffButton).toContainText("Diff On")
+    // Check initial state - button should be pressed (diff is on)
+    await expect(diffButton).toHaveAttribute("aria-pressed", "true")
 
     // Toggle off
     await diffButton.click()
-    await expect(diffButton).toContainText("Diff Off")
+
+    // After toggle, button label changes to "Show changes" and aria-pressed is false
+    const diffButtonOff = page.getByRole("button", { name: /show changes/i })
+    await expect(diffButtonOff).toHaveAttribute("aria-pressed", "false")
 
     // Toggle back on
-    await diffButton.click()
-    await expect(diffButton).toContainText("Diff On")
+    await diffButtonOff.click()
+    await expect(diffButton).toHaveAttribute("aria-pressed", "true")
   })
 
   test("transcript copy buttons work", async ({ page }) => {

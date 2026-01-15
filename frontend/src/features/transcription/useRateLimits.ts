@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { parseRateLimitHeaders } from './api'
-import type { RateLimitInfo, RateLimitError } from './types'
+import type { RateLimitInfo } from './types'
 import { ApiError } from './types'
 
 /**
