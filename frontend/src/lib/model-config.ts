@@ -1,18 +1,4 @@
-import type { CleanupType, ModelInfo } from '@/features/transcription/types'
-
-// Default LLM model for each cleanup level
-export const CLEANUP_LEVEL_DEFAULT_MODELS: Partial<Record<CleanupType, string>> = {
-  'corrected': 'llama-3.3-70b-versatile',
-  'corrected-readable': 'meta-llama/llama-4-maverick-17b-128e-instruct',
-  'corrected-readable-v2': 'meta-llama/llama-4-maverick-17b-128e-instruct',
-  'corrected-readable-v3': 'meta-llama/llama-4-maverick-17b-128e-instruct',
-  // 'formal' and 'verbatim' not included in UI for now
-}
-
-// Get default model for a cleanup level
-export function getDefaultModelForLevel(level: CleanupType): string | undefined {
-  return CLEANUP_LEVEL_DEFAULT_MODELS[level]
-}
+import type { ModelInfo } from '@/features/transcription/types'
 
 // Models allowed for cleanup
 export const CLEANUP_ALLOWED_MODELS: string[] = [

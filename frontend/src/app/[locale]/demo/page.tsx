@@ -37,7 +37,8 @@ import { useWordHighlight } from "@/features/transcription/useWordHighlight"
 import { useAnalysis } from "@/features/transcription/useAnalysis"
 import { useProcessingStages } from "@/features/transcription/useProcessingStages"
 import { getEntryAudioUrl, getOptions, getCleanedEntries, getCleanedEntry } from "@/features/transcription/api"
-import { getCleanupModels, getAnalysisModels, getDefaultModelForLevel } from "@/lib/model-config"
+import { getCleanupModels, getAnalysisModels } from "@/lib/model-config"
+import { DEFAULT_CLEANUP_LEVEL, getDefaultModelForLevel } from "@/lib/level-config"
 import { toast } from "sonner"
 import { useDemoCleanupTrigger } from "@/features/transcription/useDemoCleanupTrigger"
 import { ProcessingStages } from "@/components/demo/processing-stages"
@@ -113,7 +114,7 @@ function DemoPageContent() {
   const [cleanupModels, setCleanupModels] = useState<ModelInfo[]>([])
   const [analysisModels, setAnalysisModels] = useState<ModelInfo[]>([])
   const [selectedCleanupModel, setSelectedCleanupModel] = useState<string>('')
-  const [selectedCleanupLevel, setSelectedCleanupLevel] = useState<CleanupType>('corrected')
+  const [selectedCleanupLevel, setSelectedCleanupLevel] = useState<CleanupType>(DEFAULT_CLEANUP_LEVEL)
   const [selectedAnalysisModel, setSelectedAnalysisModel] = useState<string>('')
   // Track if user has manually selected a model (vs using defaults)
   const [hasManualCleanupModelSelection, setHasManualCleanupModelSelection] = useState(false)

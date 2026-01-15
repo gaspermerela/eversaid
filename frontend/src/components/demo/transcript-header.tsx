@@ -4,7 +4,7 @@ import type { Segment } from "@/components/demo/types"
 import type { ModelInfo, CleanupType, CleanupSummary } from "@/features/transcription/types"
 import { Eye, EyeOff, Copy, X, ChevronDown, Loader2, Check, Medal } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { getDefaultModelForLevel } from "@/lib/model-config"
+import { CLEANUP_LEVELS, getDefaultModelForLevel } from "@/lib/level-config"
 
 export interface CleanupOptionsProps {
   /** Available LLM models */
@@ -38,8 +38,6 @@ export interface TranscriptHeaderProps {
   /** Cleanup options (only for AI CLEANED header) */
   cleanupOptions?: CleanupOptionsProps
 }
-
-const CLEANUP_LEVEL_IDS: CleanupType[] = ["corrected", "corrected-readable", "corrected-readable-v2", "corrected-readable-v3"]
 
 export function TranscriptHeader({
   title,
@@ -157,7 +155,7 @@ export function TranscriptHeader({
                 </button>
                 {showLevelMenu && (
                   <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[100px]">
-                    {CLEANUP_LEVEL_IDS.map((levelId) => {
+                    {CLEANUP_LEVELS.map((levelId) => {
                       // When user has manually selected a model, check cache for that model
                       // Otherwise, check cache for the level's default model
                       const modelToCheck = cleanupOptions.hasManualSelection
