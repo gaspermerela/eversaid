@@ -37,7 +37,7 @@ export interface TranscriptHeaderProps {
   cleanupOptions?: CleanupOptionsProps
 }
 
-const CLEANUP_LEVEL_IDS: CleanupType[] = ["corrected", "corrected-readable"]
+const CLEANUP_LEVEL_IDS: CleanupType[] = ["corrected", "corrected-readable", "corrected-readable-v2", "corrected-readable-v3"]
 
 export function TranscriptHeader({
   title,
@@ -104,11 +104,10 @@ export function TranscriptHeader({
                   {showModelMenu && (
                     <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[160px]">
                       {cleanupOptions.models.map((model) => {
-                        // Check if cached, but "corrected" must not match "corrected-readable"
+                        // Check if cached (exact match on cleanup_type)
                         const isCached = cleanupOptions.cachedCleanups?.some(c =>
                           c.llm_model === model.id &&
-                          c.prompt_name?.includes(cleanupOptions.selectedLevel) &&
-                          !(cleanupOptions.selectedLevel === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
+                          c.cleanup_type === cleanupOptions.selectedLevel &&
                           c.status === 'completed'
                         )
                         return (
@@ -152,12 +151,11 @@ export function TranscriptHeader({
                 {showLevelMenu && (
                   <div className="absolute left-0 top-full mt-1 bg-background border border-border rounded-md overflow-hidden z-20 shadow-lg min-w-[100px]">
                     {CLEANUP_LEVEL_IDS.map((levelId) => {
-                      // Check if cached using the default model for each level
+                      // Check if cached (exact match on cleanup_type)
                       const defaultModelForLevel = getDefaultModelForLevel(levelId)
                       const isCached = cleanupOptions.cachedCleanups?.some(c =>
                         c.llm_model === defaultModelForLevel &&
-                        c.prompt_name?.includes(levelId) &&
-                        !(levelId === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
+                        c.cleanup_type === levelId &&
                         c.status === 'completed'
                       )
                       return (

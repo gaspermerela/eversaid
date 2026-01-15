@@ -78,7 +78,7 @@ export type { Segment, SpellcheckError, HistoryEntry, SegmentEditState } from "@
 /**
  * Cleanup type options for LLM text cleanup
  */
-export type CleanupType = 'verbatim' | 'corrected' | 'corrected-readable' | 'formal'
+export type CleanupType = 'verbatim' | 'corrected' | 'corrected-readable' | 'corrected-readable-v2' | 'corrected-readable-v3' | 'formal'
 
 /**
  * Summary of a cleanup record (for cache indicator)
@@ -87,7 +87,8 @@ export interface CleanupSummary {
   id: string
   llm_provider: string
   llm_model: string
-  prompt_name: string // cleanup level (e.g., 'corrected', 'formal')
+  prompt_name: string // full template name (e.g., 'sl-corrected-readable-v2-multi-v1')
+  cleanup_type: string | null // cleanup type (e.g., 'corrected', 'corrected-readable-v2')
   status: 'pending' | 'processing' | 'completed' | 'failed'
   is_primary: boolean
 }

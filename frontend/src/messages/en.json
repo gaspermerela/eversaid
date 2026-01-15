@@ -297,6 +297,8 @@
         "verbatim": "Verbatim",
         "corrected": "Corrected",
         "corrected-readable": "Readable",
+        "corrected-readable-v2": "Readable v2",
+        "corrected-readable-v3": "Readable v3",
         "formal": "Formal"
       },
       "copy": "Copy",

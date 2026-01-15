@@ -551,12 +551,10 @@ function DemoPageContent() {
     if (!transcription.transcriptionId || !transcription.entryId) return
 
     try {
-      // Check if cleanup already exists (match by model and level in prompt_name)
-      // Note: "corrected" must not match "corrected-readable"
+      // Check if cleanup already exists (exact match on cleanup_type)
       const existing = cleanupCache.find(c =>
         c.llm_model === modelId &&
-        c.prompt_name?.includes(selectedCleanupLevel) &&
-        !(selectedCleanupLevel === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
+        c.cleanup_type === selectedCleanupLevel &&
         c.status === 'completed'
       )
 
@@ -599,12 +597,10 @@ function DemoPageContent() {
     }
 
     try {
-      // Check if cleanup already exists (match by model and level in prompt_name)
-      // Note: "corrected" must not match "corrected-readable"
+      // Check if cleanup already exists (exact match on cleanup_type)
       const existing = modelToUse ? cleanupCache.find(c =>
         c.llm_model === modelToUse &&
-        c.prompt_name?.includes(level) &&
-        !(level === 'corrected' && c.prompt_name?.includes('corrected-readable')) &&
+        c.cleanup_type === level &&
         c.status === 'completed'
       ) : null
 
@@ -747,7 +743,7 @@ function DemoPageContent() {
   }, [analysisHook.currentAnalysisModelName])
 
   // Build cleanup cache when entry loads (for cache indicator)
-  // Stores full CleanupSummary array for flexible matching by prompt_name.includes(level)
+  // Stores full CleanupSummary array for exact matching by cleanup_type
   useEffect(() => {
     if (transcription.entryId) {
       getCleanedEntries(transcription.entryId).then(({ data }) => {

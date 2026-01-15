@@ -4,6 +4,8 @@ import type { CleanupType, ModelInfo } from '@/features/transcription/types'
 export const CLEANUP_LEVEL_DEFAULT_MODELS: Partial<Record<CleanupType, string>> = {
   'corrected': 'llama-3.3-70b-versatile',
   'corrected-readable': 'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'corrected-readable-v2': 'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'corrected-readable-v3': 'meta-llama/llama-4-maverick-17b-128e-instruct',
   // 'formal' and 'verbatim' not included in UI for now
 }
 
