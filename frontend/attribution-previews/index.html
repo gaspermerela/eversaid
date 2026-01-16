@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attribution Options - Preview</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div class="max-w-4xl mx-auto p-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-2">Source Attribution Options</h1>
+    <p class="text-gray-600 mb-8">Preview different approaches for displaying YouTube podcast attribution</p>
+
+    <div class="grid gap-6 md:grid-cols-2">
+      <!-- Option 1 -->
+      <a href="option1-hovercard.html" class="block group">
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <span class="text-lg font-bold text-indigo-600">1</span>
+            </div>
+            <h2 class="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">HoverCard on Badge</h2>
+          </div>
+          <p class="text-sm text-gray-600 mb-4">Rich popover appears on hover/click with full attribution details and link</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">Minimal UI</span>
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">Mobile friendly</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Option 2 -->
+      <a href="option2-external-link.html" class="block group">
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <span class="text-lg font-bold text-indigo-600">2</span>
+            </div>
+            <h2 class="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">External Link Icon</h2>
+          </div>
+          <p class="text-sm text-gray-600 mb-4">Simple icon next to entry name that links directly to source</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">Simple</span>
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">Always visible</span>
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">One click</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Option 3 -->
+      <a href="option3-tooltip.html" class="block group">
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <span class="text-lg font-bold text-indigo-600">3</span>
+            </div>
+            <h2 class="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">Tooltip</h2>
+          </div>
+          <p class="text-sm text-gray-600 mb-4">Minimal tooltip shows source info on hover</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">Minimal</span>
+            <span class="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded">Desktop only</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- Option 4 -->
+      <a href="option4-footer.html" class="block group">
+        <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+              <span class="text-lg font-bold text-indigo-600">4</span>
+            </div>
+            <h2 class="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">Info Footer</h2>
+          </div>
+          <p class="text-sm text-gray-600 mb-4">Full attribution displayed below transcript content</p>
+          <div class="flex flex-wrap gap-2">
+            <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">Implemented</span>
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">Prominent</span>
+            <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">Legal-friendly</span>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="mt-8 p-6 bg-white rounded-xl border border-gray-200">
+      <h3 class="font-semibold text-gray-900 mb-3">Quick comparison</h3>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-gray-500 border-b">
+            <th class="pb-2">Option</th>
+            <th class="pb-2">Mobile</th>
+            <th class="pb-2">Visibility</th>
+            <th class="pb-2">Info depth</th>
+          </tr>
+        </thead>
+        <tbody class="text-gray-700">
+          <tr class="border-b border-gray-100">
+            <td class="py-2">1. HoverCard</td>
+            <td class="py-2 text-green-600">Click works</td>
+            <td class="py-2">On demand</td>
+            <td class="py-2">Rich</td>
+          </tr>
+          <tr class="border-b border-gray-100">
+            <td class="py-2">2. Link Icon</td>
+            <td class="py-2 text-green-600">Great</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">Minimal</td>
+          </tr>
+          <tr class="border-b border-gray-100">
+            <td class="py-2">3. Tooltip</td>
+            <td class="py-2 text-amber-600">Poor</td>
+            <td class="py-2">On hover</td>
+            <td class="py-2">Brief</td>
+          </tr>
+          <tr>
+            <td class="py-2">4. Footer</td>
+            <td class="py-2 text-green-600">Great</td>
+            <td class="py-2">Always</td>
+            <td class="py-2">Full</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

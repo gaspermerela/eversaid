@@ -2,7 +2,7 @@
   "common": {
     "loading": "Nalaganje...",
     "error": "Napaka",
-    "retry": "Poskusi znova",
+    "retry": "Poskusite znova",
     "cancel": "Prekliči",
     "save": "Shrani",
     "delete": "Izbriši",
@@ -29,7 +29,7 @@
       "title": "Pametna transkripcija.",
       "titleAccent": "AI posluša. Vi odločate.",
       "subtitle": "AI čiščenje, ki ga lahko pregledate, izboljšate in mu zaupate. Vsaka sprememba vidna. Vsaka beseda preverljiva.",
-      "cta": "Preizkusi brezplačni demo",
+      "cta": "Preizkusite brezplačni demo",
       "noSignup": "Brez registracije · Brezplačni demo na voljo"
     },
     "proofVisual": {
@@ -53,7 +53,7 @@
     "insights": {
       "sectionLabel": "Analiza",
       "title": "AI vpogledi",
-      "subtitle": "Pridobite več kot le besedilo. Izberite analizo, ki ustreza vašemu načinu dela.",
+      "subtitle": "Pridobite več kot zgolj besedilo. Izberite analizo, ki ustreza vašemu načinu dela.",
       "summary": {
         "title": "Povzetek pogovora",
         "description": "Teme, ključne točke in jedrnat pregled celotnega pogovora."
@@ -64,7 +64,7 @@
       },
       "reflection": {
         "title": "Refleksija in vpogledi",
-        "description": "Teme, osnovna vprašanja in spodbude za globlji razmislek."
+        "description": "Teme, osnovna vprašanja in spodbude h globljemu razmisleku."
       },
       "comingSoon": "Kmalu: Profili analize po meri, prilagojeni vašim potrebam"
     },
@@ -75,7 +75,7 @@
       "verifyEveryWord": "Preverite vsako besedo",
       "dataProtected": "Vaši podatki, zaščiteni",
       "sideBySide": {
-        "title": "Drug ob drugem",
+        "title": "Primerjava",
         "description": "Poglejte, kaj je AI spremenil."
       },
       "speakerLabels": {
@@ -88,7 +88,7 @@
       },
       "editRevert": {
         "title": "Urejanje in povrnitev",
-        "description": "Uredite besedilo s črkovalcem."
+        "description": "Uredite ali povrnite vsak segment."
       },
       "gdpr": {
         "title": "GDPR",
@@ -114,7 +114,7 @@
       "title": "Za koga je namenjeno",
       "subtitle": "Strokovnjaki, ki potrebujejo natančne, preverljive prepise",
       "therapists": {
-        "title": "Terapevti in coachi",
+        "title": "Terapevti in mentorji",
         "description": "Dokumentirajte seje z označenimi govorci."
       },
       "journalists": {
@@ -154,7 +154,7 @@
     "finalCta": {
       "title": "Pripravljeni na pametnejšo transkripcijo?",
       "subtitle": "Brez registracije. Poglejte razliko sami.",
-      "cta": "Preizkusi brezplačni demo",
+      "cta": "Preizkusite brezplačni demo",
       "waitlistPrompt": "Želite polno šifriranje in višje omejitve?",
       "waitlistCta": "Pridružite se čakalni listi →",
       "referralNote": "Povabite prijatelje, prislužite si brezplačne kredite ob njihovi registraciji."
@@ -169,7 +169,7 @@
   },
   "demo": {
     "title": "Preizkusi EverSaid",
-    "subtitle": "Naložite zvok ali posnemite neposredno. Poglejte razliko AI čiščenja v sekundah.",
+    "subtitle": "Naložite zvok ali posnemite neposredno. Odlična transkripcija. AI jo naredi še boljšo.",
     "upload": {
       "title": "Naloži zvok",
       "uploadSubtitle": "Naložite zvočno datoteko za začetek transkripcije",
@@ -221,7 +221,7 @@
       }
     },
     "transcript": {
-      "rawTitle": "Surova transkripcija",
+      "rawTitle": "Neobdelana transkripcija",
       "cleanedTitle": "AI očiščeno",
       "copy": "Kopiraj",
       "edit": "Uredi",
@@ -275,7 +275,7 @@
         },
         "reflection": {
           "label": "Razmislek in uvidi",
-          "intent": "samoodkrivanje"
+          "intent": "samoraziskovanje"
         }
       },
       "modelChangeFailed": "Analiza z izbranim modelom ni uspela. Poskusite znova."
@@ -284,7 +284,6 @@
       "title": "Vaše transkripcije",
       "empty": "Še ni transkripcij",
       "emptySubtitle": "Naložite zvok za začetek",
-      "retention": "Transkripcije se hranijo 7 dni",
       "sampleBadge": "Primer"
     },
     "attribution": {

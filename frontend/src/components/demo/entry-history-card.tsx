@@ -129,10 +129,6 @@ export function EntryHistoryCard({
             })}
           </div>
         )}
-
-        <div className="px-4 py-3 border-t border-border text-[11px] text-muted-foreground text-center">
-          {t('retention')}
-        </div>
       </div>
 
       <AlertDialog open={deleteConfirmId !== null} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>

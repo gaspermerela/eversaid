@@ -169,7 +169,7 @@
   },
   "demo": {
     "title": "Try EverSaid",
-    "subtitle": "Upload audio or record directly. See the AI cleanup difference in seconds.",
+    "subtitle": "Upload or record. Accurate transcription. AI refines it further.",
     "upload": {
       "title": "Upload Audio",
       "uploadSubtitle": "Upload an audio file to begin transcription",
@@ -284,7 +284,6 @@
       "title": "Your Transcriptions",
       "empty": "No transcriptions yet",
       "emptySubtitle": "Upload audio to get started",
-      "retention": "Transcriptions kept for 7 days",
       "sampleBadge": "Sample"
     },
     "attribution": {

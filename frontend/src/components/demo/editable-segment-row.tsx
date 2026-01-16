@@ -234,18 +234,18 @@ export function EditableSegmentRow({
                   {isReverted ? (
                     <button
                       onClick={onUndoRevert}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-[11px] font-semibold text-blue-700 transition-all"
+                      className="flex items-center justify-center w-7 h-7 bg-blue-100 hover:bg-blue-200 border border-blue-300 rounded-md text-blue-700 transition-all"
+                      aria-label="Undo revert"
                     >
-                      <Undo2 className="w-3 h-3" />
-                      Undo
+                      <Undo2 className="w-3.5 h-3.5" />
                     </button>
                   ) : (
                     <button
                       onClick={onRevert}
-                      className="flex items-center gap-1 px-2.5 py-1 bg-background hover:bg-red-50 border border-border hover:border-red-300 rounded-md text-[11px] font-semibold text-muted-foreground hover:text-red-600 transition-all"
+                      className="flex items-center justify-center w-7 h-7 bg-background hover:bg-red-50 border border-border hover:border-red-300 rounded-md text-muted-foreground hover:text-red-600 transition-all"
+                      aria-label="Revert to original"
                     >
-                      <RotateCcw className="w-3 h-3" />
-                      Revert
+                      <RotateCcw className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </>

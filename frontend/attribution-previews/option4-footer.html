@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Option 4: Info Footer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-xl font-bold mb-6 text-gray-800">Option 4: Info Footer</h1>
+    <p class="text-sm text-gray-500 mb-4">Attribution shown below the transcript content area</p>
+
+    <!-- Simulated transcript area -->
+    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg font-semibold text-gray-900">Podkast Tritonus</h2>
+          <span class="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">
+            Sample
+          </span>
+        </div>
+        <span class="text-sm text-gray-500">2:34</span>
+      </div>
+
+      <!-- Content area -->
+      <div class="p-6">
+        <div class="space-y-4">
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-medium text-blue-600">S1</span>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm text-gray-700">Pozdravljeni v novi epizodi podcasta. Danes bomo govorili o umetni inteligenci in njenem vplivu na kreativne industrije.</p>
+              <span class="text-xs text-gray-400 mt-1 block">0:00 - 0:12</span>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-medium text-green-600">S2</span>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm text-gray-700">Ja, to je res zanimiva tema. Mislim, da smo priča velikim spremembam v tem področju, posebej v zadnjem letu.</p>
+              <span class="text-xs text-gray-400 mt-1 block">0:12 - 0:24</span>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <span class="text-xs font-medium text-blue-600">S1</span>
+            </div>
+            <div class="flex-1">
+              <p class="text-sm text-gray-700">Ravno to. Poglejmo si nekaj konkretnih primerov...</p>
+              <span class="text-xs text-gray-400 mt-1 block">0:24 - 0:32</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attribution Footer -->
+      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <div class="flex items-center gap-2 text-xs text-gray-500">
+          <svg class="w-4 h-4 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          </svg>
+          <span>Audio excerpt from</span>
+          <a href="https://youtube.com/@example" target="_blank" rel="noopener noreferrer"
+             class="font-medium text-gray-700 hover:text-indigo-600 transition-colors underline underline-offset-2">
+            Podkast Tritonus - Ep. 42
+          </a>
+          <span>· Used for demonstration purposes</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Variant: Minimal footer -->
+    <h2 class="text-lg font-semibold mt-8 mb-4 text-gray-700">Variant: Minimal inline</h2>
+    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      <div class="p-6">
+        <p class="text-sm text-gray-700 mb-4">Sample transcript content would appear here...</p>
+      </div>
+      <div class="px-6 py-3 border-t border-gray-100">
+        <p class="text-xs text-gray-400">
+          Source:
+          <a href="https://youtube.com/@example" target="_blank"
+             class="text-gray-500 hover:text-indigo-600 underline">
+            Podkast Tritonus
+          </a>
+        </p>
+      </div>
+    </div>
+
+    <!-- Variant: Card style (IMPLEMENTED) -->
+    <h2 class="text-lg font-semibold mt-8 mb-4 text-gray-700">Variant: Card style attribution <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded ml-2">IMPLEMENTED</span></h2>
+    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      <div class="p-6">
+        <p class="text-sm text-gray-700 mb-4">Sample transcript content would appear here...</p>
+
+        <!-- Attribution card -->
+        <div class="mt-6 p-4 bg-gradient-to-r from-gray-50 to-red-50 rounded-xl border border-gray-100">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-white rounded-lg shadow-sm flex items-center justify-center">
+              <svg class="w-6 h-6 text-red-500" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+            </div>
+            <div class="flex-1">
+              <p class="text-xs text-gray-500">Demo audio source</p>
+              <p class="text-sm font-medium text-gray-900">Podkast Tritonus - Ep. 42</p>
+            </div>
+            <a href="https://youtube.com/@example" target="_blank"
+               class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1">
+              Watch
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 p-4 bg-indigo-50 rounded-lg">
+      <p class="text-xs text-indigo-800"><strong>Pros:</strong> Clear attribution, proper credit, space for full info</p>
+      <p class="text-xs text-indigo-600 mt-1"><strong>Best for:</strong> Legal compliance, prominent source credit, professional appearance</p>
+    </div>
+  </div>
+</body>
+</html>

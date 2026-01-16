@@ -1120,9 +1120,9 @@ function DemoPageContent() {
           {transcription.segments.length === 0 && (
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="text-4xl font-bold text-[#1E293B] mb-2">Try eversaid</h1>
+                <h1 className="text-4xl font-bold text-[#1E293B] mb-2">{t('demo.title')}</h1>
                 <p className="text-[#64748B] text-lg">
-                  Upload audio or record directly. See the AI cleanup difference in seconds.
+                  {t('demo.subtitle')}
                 </p>
               </div>
               {transcription.rateLimits?.day &&
