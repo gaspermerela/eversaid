@@ -304,6 +304,9 @@ jobs:
           script: |
             cd ~/eversaid/${{ steps.vars.outputs.dir }}
 
+            # Update image tag to what was just built
+            sed -i 's/IMAGE_TAG=.*/IMAGE_TAG=${{ needs.build.outputs.image_tag }}/' .env
+
             # Login to ghcr.io
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
@@ -315,4 +318,4 @@ jobs:
             sleep 10
             curl -f http://localhost:${{ steps.vars.outputs.port }}/health || exit 1
 
-            echo "Manual deployment to ${{ github.event.inputs.environment }} complete!"
+            echo "Manual deployment to ${{ github.event.inputs.environment }} complete! Image: ${{ needs.build.outputs.image_tag }}"
