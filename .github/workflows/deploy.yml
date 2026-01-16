@@ -163,6 +163,7 @@ jobs:
             NEXT_PUBLIC_DEMO_SL_SOURCE_URL=${{ secrets.DEMO_SL_SOURCE_URL }}
             NEXT_PUBLIC_DEMO_EN_SOURCE_URL=${{ secrets.DEMO_EN_SOURCE_URL }}
             NEXT_PUBLIC_ENABLE_MODEL_SELECTION=${{ secrets.ENABLE_MODEL_SELECTION }}
+            NEXT_PUBLIC_ENABLE_TEMPERATURE_SELECTION=${{ secrets.ENABLE_TEMPERATURE_SELECTION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
