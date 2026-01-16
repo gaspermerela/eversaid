@@ -2,8 +2,9 @@
 
 import { Link } from "@/i18n/routing"
 import { Shield } from "lucide-react"
-import { useState, useCallback } from "react"
+import { useState, useCallback, Suspense } from "react"
 import { useTranslations } from "next-intl"
+import { useSearchParams } from "next/navigation"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 import { useWaitlist } from "@/features/transcription/useWaitlist"
 import { LiveTranscriptPreview } from "@/components/landing/live-transcript-preview"
@@ -25,10 +26,14 @@ import {
   stepItem,
 } from "@/lib/animation-variants"
 
-export default function HomePage() {
+function HomePageContent() {
   const t = useTranslations('landing')
   const tNav = useTranslations('navigation')
   const tRoot = useTranslations()
+  const searchParams = useSearchParams()
+
+  // Capture referral code from URL param
+  const referredBy = searchParams.get('ref') ?? undefined
 
   // Waitlist modal state
   const [waitlistState, setWaitlistState] = useState<"hidden" | "toast" | "form" | "success">("hidden")
@@ -43,7 +48,8 @@ export default function HomePage() {
   // Hook for API integration
   const waitlist = useWaitlist({
     waitlistType,
-    sourcePage: '/'
+    sourcePage: '/',
+    referredBy,
   })
 
   const handleWaitlistClick = useCallback((type: "extended_usage" | "api_access") => {
@@ -716,5 +722,14 @@ export default function HomePage() {
         t={tRoot}
       />
     </main>
+  )
+}
+
+// Wrap in Suspense for useSearchParams (required by Next.js)
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[linear-gradient(135deg,#0F172A_0%,#1E3A5F_50%,#0F172A_100%)]" />}>
+      <HomePageContent />
+    </Suspense>
   )
 }

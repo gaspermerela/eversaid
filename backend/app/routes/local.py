@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session as DBSession
 from app.config import Settings, get_settings
 from app.core_client import CoreAPIClient, CoreAPIError, get_core_api
 from app.database import get_db
-from app.models import EntryFeedback, Session as SessionModel, Waitlist
+from app.models import EntryFeedback, Session as SessionModel, Waitlist, generate_referral_code
 from app.rate_limit import get_rate_limit_status
 from app.session import get_session
 
@@ -88,12 +88,14 @@ class WaitlistRequest(BaseModel):
     use_case: Optional[str] = Field(default=None, max_length=500)
     waitlist_type: Literal["api_access", "extended_usage"]
     source_page: Optional[str] = None
+    referred_by: Optional[str] = Field(default=None, max_length=20)
 
 
 class WaitlistResponse(BaseModel):
     """Response for waitlist signup."""
 
     message: str
+    referral_code: Optional[str] = None
 
 
 # =============================================================================
@@ -220,13 +222,38 @@ async def join_waitlist(
 
     Handles duplicate emails silently (returns success without leaking info).
     Does NOT require a session - this is a public endpoint.
+    Generates a unique referral code for new signups.
     """
     # Check for existing email
     existing = db.query(Waitlist).filter(Waitlist.email == body.email).first()
 
     if existing:
-        # Return success without leaking that email already exists
-        return WaitlistResponse(message="Thank you for joining the waitlist!")
+        # Return success with existing referral code (without leaking new signups)
+        return WaitlistResponse(
+            message="Thank you for joining the waitlist!",
+            referral_code=existing.referral_code,
+        )
+
+    # Validate referred_by code exists (if provided)
+    validated_referred_by = None
+    if body.referred_by:
+        referrer = db.query(Waitlist).filter(Waitlist.referral_code == body.referred_by).first()
+        if referrer:
+            validated_referred_by = body.referred_by
+        # If code doesn't exist, silently ignore (don't fail signup)
+
+    # Generate unique referral code with collision retry
+    referral_code = None
+    for _ in range(5):  # Max 5 retries
+        candidate = generate_referral_code()
+        if not db.query(Waitlist).filter(Waitlist.referral_code == candidate).first():
+            referral_code = candidate
+            break
+
+    if not referral_code:
+        # Extremely unlikely, but fallback to UUID-based code
+        import uuid
+        referral_code = f"REF-{str(uuid.uuid4())[:8].upper()}"
 
     # Create new waitlist entry
     waitlist_entry = Waitlist(
@@ -234,8 +261,13 @@ async def join_waitlist(
         use_case=body.use_case,
         waitlist_type=body.waitlist_type,
         source_page=body.source_page,
+        referral_code=referral_code,
+        referred_by=validated_referred_by,
     )
     db.add(waitlist_entry)
     db.commit()
 
-    return WaitlistResponse(message="Thank you for joining the waitlist!")
+    return WaitlistResponse(
+        message="Thank you for joining the waitlist!",
+        referral_code=referral_code,
+    )

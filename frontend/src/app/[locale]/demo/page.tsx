@@ -232,10 +232,14 @@ function DemoPageContent() {
   const [source, setSource] = useState("")
   const [copied, setCopied] = useState(false)
 
+  // Capture referral code from URL param
+  const referredBy = searchParams.get('ref') ?? undefined
+
   // Hook for API integration
   const waitlist = useWaitlist({
     waitlistType,
-    sourcePage: '/demo'
+    sourcePage: '/demo',
+    referredBy,
   })
 
   // Rate limit modal state
