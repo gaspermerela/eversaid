@@ -2,17 +2,15 @@
 "use client"
 
 import { Link } from "@/i18n/routing"
-import { useState, useEffect, useCallback, Suspense } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Check, LinkIcon } from "lucide-react"
 import { useTranslations } from "next-intl"
-import { useSearchParams } from "next/navigation"
 import { WaitlistFlow } from "@/components/waitlist/waitlist-flow"
 import { useWaitlist } from "@/features/transcription/useWaitlist"
 
-function ApiDocsPageContent() {
+export default function ApiDocsPage() {
   const tNav = useTranslations('navigation')
   const tRoot = useTranslations()
-  const searchParams = useSearchParams()
   const [activeSection, setActiveSection] = useState("quickstart")
   const [activeTab, setActiveTab] = useState<Record<string, string>>({
     register: "curl",
@@ -34,14 +32,10 @@ function ApiDocsPageContent() {
   const [source, setSource] = useState("")
   const [copied, setCopied] = useState(false)
 
-  // Capture referral code from URL param
-  const referredBy = searchParams.get('ref') ?? undefined
-
   // Hook for API integration (always api_access for this page)
   const waitlist = useWaitlist({
     waitlistType: 'api_access',
-    sourcePage: '/api-docs',
-    referredBy,
+    sourcePage: '/api-docs'
   })
 
   const _handleCopyCode = (code: string, id: string) => {
@@ -1938,14 +1932,5 @@ console.log('Actions:', analysis.result.action_items);}
         </div>
       </footer>
     </div>
-  )
-}
-
-// Wrap in Suspense for useSearchParams (required by Next.js)
-export default function ApiDocsPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC]" />}>
-      <ApiDocsPageContent />
-    </Suspense>
   )
 }

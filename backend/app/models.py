@@ -1,5 +1,3 @@
-import secrets
-import string
 import uuid
 from datetime import datetime
 
@@ -11,18 +9,6 @@ from app.database import Base
 def generate_uuid() -> str:
     """Generate a UUID string."""
     return str(uuid.uuid4())
-
-
-def generate_referral_code() -> str:
-    """Generate a unique referral code.
-
-    Format: REF-XXXXXXXX (8 alphanumeric chars, ambiguous chars removed)
-    """
-    # Remove ambiguous characters: 0, O, I, l, 1
-    alphabet = string.ascii_uppercase + string.digits
-    alphabet = alphabet.replace("0", "").replace("O", "").replace("I", "").replace("1", "")
-    code = "".join(secrets.choice(alphabet) for _ in range(8))
-    return f"REF-{code}"
 
 
 class Session(Base):
@@ -51,8 +37,6 @@ class Waitlist(Base):
     waitlist_type = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     source_page = Column(String, nullable=True)
-    referral_code = Column(String, unique=True, nullable=True, index=True)
-    referred_by = Column(String, nullable=True)
 
 
 class EntryFeedback(Base):

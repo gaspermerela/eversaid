@@ -20,8 +20,6 @@ export interface UseWaitlistOptions {
   waitlistType: WaitlistType
   /** Optional source page for tracking */
   sourcePage?: string
-  /** Optional referral code from URL param (who referred this user) */
-  referredBy?: string
 }
 
 /**
@@ -69,7 +67,7 @@ export interface UseWaitlistReturn {
  * ```
  */
 export function useWaitlist(options: UseWaitlistOptions): UseWaitlistReturn {
-  const { waitlistType, sourcePage, referredBy } = options
+  const { waitlistType, sourcePage } = options
 
   // Form state (email is controlled by the hook, other fields come from WaitlistFlow)
   const [email, setEmail] = useState('')
@@ -92,24 +90,24 @@ export function useWaitlist(options: UseWaitlistOptions): UseWaitlistReturn {
     setIsSubmitting(true)
 
     try {
-      const response = await joinWaitlist({
+      await joinWaitlist({
         email: email.trim(),
         use_case: formData.useCase.trim() || undefined,
         waitlist_type: waitlistType,
         source_page: sourcePage,
-        referred_by: referredBy,
       })
 
-      // Use referral code from API response
-      setReferralCode(response.data.referral_code ?? null)
+      // Generate a referral code on success
+      // In production this would come from the API response
+      const generatedCode = `REF${Math.random().toString(36).substring(2, 8).toUpperCase()}`
+      setReferralCode(generatedCode)
       setIsSubmitted(true)
       toast.success("You're on the waitlist!")
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 409) {
           // Duplicate email - treat as success (already registered)
-          // Note: Backend now returns referral_code for existing users too
-          setReferralCode(null)
+          setReferralCode(null) // No new referral code for existing users
           setIsSubmitted(true)
           toast.success('You\'re already on the waitlist!')
         } else if (err.status === 429) {
@@ -133,7 +131,7 @@ export function useWaitlist(options: UseWaitlistOptions): UseWaitlistReturn {
     } finally {
       setIsSubmitting(false)
     }
-  }, [email, waitlistType, sourcePage, referredBy])
+  }, [email, waitlistType, sourcePage])
 
   const reset = useCallback(() => {
     setEmail('')

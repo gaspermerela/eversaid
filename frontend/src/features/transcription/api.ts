@@ -20,7 +20,6 @@ import type {
   TranscribeResponse,
   TranscriptionStatus,
   WaitlistPayload,
-  WaitlistResponse,
 } from './types'
 import { ApiError } from './types'
 import { clearSession } from '@/lib/session'
@@ -516,8 +515,8 @@ export async function getFeedback(
  */
 export async function joinWaitlist(
   payload: WaitlistPayload
-): Promise<{ data: WaitlistResponse; rateLimitInfo: RateLimitInfo | null }> {
-  return request<WaitlistResponse>('/api/waitlist', {
+): Promise<{ data: { message: string }; rateLimitInfo: RateLimitInfo | null }> {
+  return request<{ message: string }>('/api/waitlist', {
     method: 'POST',
     body: payload as unknown as Record<string, unknown>,
   })

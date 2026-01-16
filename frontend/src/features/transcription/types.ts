@@ -406,15 +406,6 @@ export interface WaitlistPayload {
   use_case?: string
   waitlist_type: WaitlistType
   source_page?: string
-  referred_by?: string
-}
-
-/**
- * Waitlist API response
- */
-export interface WaitlistResponse {
-  message: string
-  referral_code?: string
 }
 
 // =============================================================================
