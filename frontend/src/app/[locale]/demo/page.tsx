@@ -249,7 +249,24 @@ function DemoPageContent() {
   // Track deleted entry IDs to prevent reloading from URL after deletion
   const deletedEntryRef = useRef<string | null>(null)
 
-  // Load entry from URL query param on mount (for browser back button support)
+  // Handle browser back/forward navigation using popstate event
+  // This is more reliable than depending on searchParams updates
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const entryId = urlParams.get('entry')
+
+      // If URL has no entry param but we have loaded content, reset to upload view
+      if (!entryId && transcription.segments.length > 0) {
+        transcription.reset()
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [transcription.segments.length, transcription.reset])
+
+  // Load entry from URL query param on mount
   // Wait for sessionReady to avoid race condition where multiple requests
   // with invalid session cookie create separate sessions
   useEffect(() => {
@@ -265,7 +282,7 @@ function DemoPageContent() {
       // Demo entries detected by "demo-*" ID pattern
       transcription.loadEntry(entryId)
     }
-  }, [sessionReady, searchParams, transcription])
+  }, [sessionReady, searchParams, transcription.entryId, transcription.status, transcription.loadEntry])
 
   // Update URL when entry is loaded (creates browser history entry)
   // Use a ref to track if we've already pushed this entry to avoid loops

@@ -115,4 +115,66 @@ test.describe("Demo Page - Upload Mode", () => {
     // History card - visible in upload mode
     await expect(page.getByText("Your Transcriptions")).toBeVisible()
   })
+
+  test("browser back button returns to upload view (page.goto)", async ({ page }) => {
+    // Setup mocks for upload mode (empty entry history)
+    await setupUploadModeMocks(page)
+
+    // 1. Start on upload view
+    await page.goto("/en/demo")
+    await expect(page.getByText("Your Transcriptions")).toBeVisible()
+
+    // 2. Load an entry (navigate to transcript view)
+    await setupDemoMocks(page)
+    await page.goto("/en/demo?entry=demo-en")
+
+    // Verify we're on transcript view
+    await expect(page.getByText("Raw Transcription")).toBeVisible()
+    await expect(page.getByText("AI Cleaned")).toBeVisible()
+
+    // 3. Click browser back button
+    await page.goBack()
+
+    // 4. Verify we're back on upload view
+    await expect(page).toHaveURL("/en/demo")
+    await expect(page.getByText("Your Transcriptions")).toBeVisible()
+
+    // 5. Verify transcript is NOT visible
+    await expect(page.getByText("Raw Transcription")).not.toBeVisible()
+  })
+
+  test("browser back button returns to upload view (client-side navigation)", async ({ page }) => {
+    // This test simulates the real user flow: clicking on entry in sidebar
+    // which triggers client-side navigation via router.push()
+
+    // Setup mocks with entries in history
+    await setupDemoMocks(page)
+
+    // 1. Start on upload view (no entry param)
+    await page.goto("/en/demo")
+
+    // Wait for the page to load and session to be ready
+    await expect(page.getByText("Your Transcriptions")).toBeVisible()
+
+    // 2. Click on entry in history sidebar (simulates real user flow)
+    // Entry card shows filename as text inside the card
+    const entryCard = page.getByText("demo-en.mp3")
+    await expect(entryCard).toBeVisible()
+    await entryCard.click()
+
+    // Wait for transcript view to load (URL should update via router.push)
+    await expect(page).toHaveURL(/entry=demo-en/, { timeout: 10000 })
+    await expect(page.getByText("Raw Transcription")).toBeVisible()
+    await expect(page.getByText("AI Cleaned")).toBeVisible()
+
+    // 3. Click browser back button
+    await page.goBack()
+
+    // 4. Verify we're back on upload view
+    await expect(page).toHaveURL("/en/demo")
+
+    // 5. Verify transcript is NOT visible (this is the key assertion)
+    await expect(page.getByText("Raw Transcription")).not.toBeVisible({ timeout: 5000 })
+    await expect(page.getByText("Your Transcriptions")).toBeVisible()
+  })
 })

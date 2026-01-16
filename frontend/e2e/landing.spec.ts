@@ -60,7 +60,7 @@ test.describe("Landing Page", () => {
     await expect(page.getByText(/© \d{4} EverSaid/)).toBeVisible()
     await expect(page.getByRole("link", { name: "Privacy Policy" })).toBeVisible()
     await expect(page.getByRole("link", { name: "Terms" })).toBeVisible()
-    await expect(page.getByRole("link", { name: "Contact" })).toBeVisible()
+    await expect(page.getByRole("link", { name: "hello@eversaid.ai" })).toBeVisible()
   })
 
   test("Join waitlist link opens waitlist modal", async ({ page }) => {
